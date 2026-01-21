@@ -10,8 +10,15 @@ from fastapi import (FastAPI, File, Form, HTTPException, UploadFile, WebSocket,
                      WebSocketDisconnect)
 from starlette.responses import FileResponse
 
-from aiwin_resource.creator import resource_creator
+from aiwin_resource.creator import ResourceCreator
 from aiwin_resource.instance_manager import ResourceInstanceManager
+from aiwin_resource.plugins.image.v1.main import ImageResource
+from aiwin_resource.plugins.number.v1.main import NumberResource
+from aiwin_resource.plugins.numbers.v1.main import NumbersResource
+from aiwin_resource.plugins.string.v1.main import StringResource
+from aiwin_resource.plugins.unknown.v1.main import UnknownResource
+from aiwin_resource.plugins.vision.input.usb_device.v1.main import UsbDeviceResource
+from aiwin_resource.plugins.vision.input.usb_devices.v1.main import UsbDevicesResource
 from event_emitter import EventEmitter
 from node.base import BaseNode, BaseNodeContext
 from node.manager import NodeManager
@@ -129,6 +136,17 @@ async def run_pipeline(pipeline: List[Dict[str, Any]]):
         node_manager.register(plugin_name, backend_class)
 
     resource_manager = ResourceInstanceManager()
+
+    resource_creator = ResourceCreator()
+    resource_creator.register("image.v1", ImageResource)
+    resource_creator.register("string.v1", StringResource)
+    resource_creator.register("number.v1", NumberResource)
+    resource_creator.register("numbers.v1", NumbersResource)
+    resource_creator.register("unknown.v1", UnknownResource)
+    resource_creator.register("vision.input.usb_device.v1", UsbDeviceResource)
+    resource_creator.register(
+        "vision.input.usb_devices.v1", UsbDevicesResource)
+
     file_store = FileStore(cfg={"url": "http://localhost:8000"})
     event_emitter = EventEmitter()
     node_context = BaseNodeContext(

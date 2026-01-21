@@ -2,8 +2,6 @@ from abc import abstractmethod
 from datetime import datetime
 from typing import Any, Dict, Generic, List, Literal, Protocol, TypeVar, TypedDict, Union
 
-from aiwin_resource.creator import ResourceCreator
-
 
 class BaseSchema(TypedDict, total=False):
     schema: str
@@ -47,7 +45,7 @@ class ResourceProtocol(Generic[TData], Protocol):
 
 
 class ResourceContext(TypedDict):
-    creator: ResourceCreator
+    """Resource context."""
 
 
 class ResourceConfig(TypedDict):

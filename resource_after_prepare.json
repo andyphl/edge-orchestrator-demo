@@ -1,0 +1,25 @@
+[
+    {
+        "key": "node_1.usb_devices",
+        "schema": "vision.input.usb_devices.v1",
+        "name": "usb_devices",
+        "timestamp": "2026-01-21T17:31:57.621082",
+        "scopes": [
+            "node_1"
+        ],
+        "data": [
+            0
+        ]
+    },
+    {
+        "key": "node_1.usb_devices.usb_device_0",
+        "schema": "vision.input.usb_device.v1",
+        "name": "usb_device_0",
+        "timestamp": "2026-01-21T17:31:57.621093",
+        "scopes": [
+            "node_1",
+            "usb_devices"
+        ],
+        "data": 0
+    }
+]

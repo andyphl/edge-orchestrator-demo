@@ -48,15 +48,12 @@ class ImageResource(Resource[MatLike]):
 
     def from_serialized(self, serialized: Dict[str, Any]) -> 'ImageResource':
 
-        return cast(
-            ImageResource,
-            self._ctx['creator'].create('image.v1', {
-                'name': serialized['name'],
-                'scopes': serialized['scopes'],
-                # data will be image url, convert it to bytes
-                'data': requests.get(serialized['data']).content
-            })
-        )
+        return ImageResource({}, {
+            'name': serialized['name'],
+            'scopes': serialized['scopes'],
+            # data will be image url, convert it to bytes
+            'data': requests.get(serialized['data']).content
+        })
 
     def dispose(self) -> None:
 
