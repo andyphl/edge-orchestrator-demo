@@ -42,15 +42,38 @@ class WebcamNode(BaseNode):
         device_id = self.cfg.get('config', {}).get('device_id')
         if device_id is None:
             raise ValueError("device_id is required")
+
+        # Check if device is available before attempting to open
+        available_devices = self._list_devices()
+        if device_id not in available_devices:
+            raise ValueError(
+                f"Device {device_id} is not available. "
+                f"Available devices: {available_devices if available_devices else 'none'}. "
+                f"Make sure the camera is connected and not in use by another application.")
+
         cap = cv2.VideoCapture(device_id)
         if not cap.isOpened():
+            available_devices = self._list_devices()
             raise ValueError(
-                f"Failed to open video capture for device {device_id}")
+                f"Failed to open video capture for device {device_id}. "
+                f"Available devices: {available_devices if available_devices else 'none'}. "
+                f"The device may be in use by another application or may require permissions.")
+
         try:
+            # Set some properties to help with initialization
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
             ret, frame = cap.read()
             if not ret:
                 raise ValueError(
-                    f"Failed to read frame from device {device_id}")
+                    f"Failed to read frame from device {device_id}. "
+                    f"The camera may be in use, disconnected, or not responding. "
+                    f"Try closing other applications that might be using the camera.")
+
+            if frame.size == 0:
+                raise ValueError(
+                    f"Received empty frame from device {device_id}. "
+                    f"The camera may not be providing valid video data.")
 
             image_resource = ImageResource({
                 'name': 'image',
@@ -60,6 +83,11 @@ class WebcamNode(BaseNode):
 
             self.ctx['resource'].set(
                 image_resource.get_key(), image_resource)
+            
+            # 执行完成后，通知下一个 node
+            next_node_index = self.cfg.get('_next_node_index')
+            if next_node_index is not None:
+                self.ctx['event'].emit(f"node_start_{next_node_index}")
         finally:
             cap.release()
 

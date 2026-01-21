@@ -7,8 +7,7 @@
             "user_defined_node_#1"
         ],
         "data": [
-            0,
-            1
+            0
         ]
     },
     {
@@ -20,15 +19,5 @@
             "usb_devices"
         ],
         "data": 0
-    },
-    {
-        "key": "user_defined_node_#1.usb_devices.usb_device_1",
-        "schema": "vision.input.usb_device.v1",
-        "name": "usb_device_1",
-        "scopes": [
-            "user_defined_node_#1",
-            "usb_devices"
-        ],
-        "data": 1
     }
 ]

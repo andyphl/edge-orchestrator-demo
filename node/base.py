@@ -1,12 +1,14 @@
 from typing import Any, Dict, Protocol, TypedDict
 
 from aiwin_resource.manager import ResourceManager
+from event_emitter import EventEmitter
 from store.file import BaseStore
 
 
 class BaseNodeContext(TypedDict):
     resource: ResourceManager
     file_store: BaseStore
+    event: EventEmitter
 
 
 class BaseNode(Protocol):

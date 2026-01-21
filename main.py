@@ -11,7 +11,8 @@ from fastapi import (FastAPI, File, Form, HTTPException, UploadFile, WebSocket,
 from starlette.responses import FileResponse
 
 from aiwin_resource.manager import ResourceManager
-from node.base import BaseNodeContext
+from event_emitter import EventEmitter
+from node.base import BaseNode, BaseNodeContext
 from node.manager import NodeManager
 from store.file import FileStore
 
@@ -95,7 +96,8 @@ async def run_pipeline(pipeline: List[Dict[str, Any]]):
     # ]
 
     plugin_map = {
-        "webcam": "random_id_1"
+        "webcam": "random_id_1",
+        "binarization": "random_id_2"
     }
 
     node_manager = NodeManager()
@@ -117,19 +119,45 @@ async def run_pipeline(pipeline: List[Dict[str, Any]]):
 
     resource_manager = ResourceManager()
     file_store = FileStore(cfg={"url": "http://localhost:8000"})
+    event_emitter = EventEmitter()
     node_context = BaseNodeContext(
-        resource=resource_manager, file_store=file_store)
+        resource=resource_manager, file_store=file_store, event=event_emitter)
 
     def run_pipeline_thread(pipeline: List[Dict[str, Any]]):
-        for node_config in pipeline:
+        # 初始化所有 node 並調用 prepare，同時為每個 node 配置下一個 node 的索引
+        node_instances: List[BaseNode] = []
+        for i, node_config in enumerate(pipeline):
+            # 在 node_config 中添加下一個 node 的索引資訊
+            node_config_with_next = node_config.copy()
+            if i + 1 < len(pipeline):
+                node_config_with_next['_next_node_index'] = i + 1
+            else:
+                node_config_with_next['_next_node_index'] = None
+
             node_class = node_manager.get(node_config["name"])
-            node_instance = node_class(node_context, node_config)
+            node_instance = node_class(node_context, node_config_with_next)
             node_instance.prepare()
-            json.dump(resource_manager.serialize(),
-                      open("resource_after_prepare.json", "w"), indent=4)
-            node_instance.execute()
-            json.dump(resource_manager.serialize(),
-                      open("resource_after_execute.json", "w"), indent=4)
+            node_instances.append(node_instance)
+
+        json.dump(resource_manager.serialize(),
+                  open("resource_after_prepare.json", "w"), indent=4)
+
+        # 為每個 node 註冊事件監聽器
+        def create_node_executor(node_index: int):
+            def execute_node(data: Any = None):
+                node_instance = node_instances[node_index]
+                node_instance.execute()
+                json.dump(resource_manager.serialize(),
+                          open(f"resource_after_execute_node_{node_index}.json", "w"), indent=4)
+
+            return execute_node
+
+        # 為每個 node 註冊事件監聽器
+        for i in range(len(node_instances)):
+            event_emitter.on(f"node_start_{i}", create_node_executor(i))
+
+        # 發送第一個 node 的開始信號
+        event_emitter.emit("node_start_0")
 
     Thread(target=run_pipeline_thread, args=(pipeline,)).start()
 

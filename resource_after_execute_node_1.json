@@ -28,5 +28,14 @@
             "user_defined_node_#1"
         ],
         "data": "http://localhost:8000/file/demo.jpg"
+    },
+    {
+        "key": "user_defined_node_#2.binary_image",
+        "schema": "image.v1",
+        "name": "binary_image",
+        "scopes": [
+            "user_defined_node_#2"
+        ],
+        "data": "http://localhost:8000/file/demo.jpg"
     }
 ]
