@@ -15,6 +15,7 @@ class ImageResource(Resource):
     def __init__(self, ctx: Union[ResourceContext, Dict[str, Any]]):
         super().__init__(ctx)
         # Convert numpy array (OpenCV frame) to JPEG bytes if needed
+        self._filename: str = cast(str, ctx.get('filename', 'image.jpg'))
         image_data: Any = self.data
         if isinstance(image_data, np.ndarray):
             # OpenCV uses BGR, encode to JPEG
@@ -27,8 +28,7 @@ class ImageResource(Resource):
 
         # just for demo purpose, DO NOT USE THIS IN PRODUCTION
         file_store = FileStore(cfg={"url": "http://localhost:8000"})
-        response = file_store.upload("demo.jpg", image_data)
-        self._filename = response['filename']
+        file_store.upload(self._filename, image_data)
 
     def get_sibling_resources(self) -> List[Resource]:
         return []

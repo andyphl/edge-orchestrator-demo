@@ -79,7 +79,8 @@ class WebcamNode(BaseNode):
             self._image_resource = ImageResource({
                 'name': 'image',
                 'scopes': [self.cfg['id']],
-                'data': frame
+                'data': frame,
+                "filename": f"{self.cfg['id']}_image.jpg"
             })
 
             self.ctx['resource'].set(

@@ -27,7 +27,7 @@
         "scopes": [
             "user_defined_node_#1"
         ],
-        "data": "http://localhost:8000/file/demo.jpg"
+        "data": "http://localhost:8000/file/user_defined_node_#1_image.jpg"
     },
     {
         "key": "user_defined_node_#2.binary_image",
@@ -36,6 +36,6 @@
         "scopes": [
             "user_defined_node_#2"
         ],
-        "data": "http://localhost:8000/file/demo.jpg"
+        "data": "http://localhost:8000/file/user_defined_node_#2_binary_image.jpg"
     }
 ]

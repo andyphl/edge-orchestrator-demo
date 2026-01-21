@@ -32,7 +32,8 @@ class BinarizationNode(BaseNode):
         self._binary_image_resource = ImageResource({
             'name': 'binary_image',
             'scopes': [self.cfg['id']],
-            'data': binary_image
+            'data': binary_image,
+            "filename": f"{self.cfg['id']}_binary_image.jpg"
         })
 
         self.ctx['resource'].set(
