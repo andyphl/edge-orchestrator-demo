@@ -3,6 +3,7 @@
         "key": "user_defined_node_#1.usb_devices",
         "schema": "vision.input.usb_devices.v1",
         "name": "usb_devices",
+        "timestamp": "2026-01-21T10:43:40.366682",
         "scopes": [
             "user_defined_node_#1"
         ],
@@ -14,6 +15,7 @@
         "key": "user_defined_node_#1.usb_devices.usb_device_0",
         "schema": "vision.input.usb_device.v1",
         "name": "usb_device_0",
+        "timestamp": "2026-01-21T10:43:40.366711",
         "scopes": [
             "user_defined_node_#1",
             "usb_devices"
@@ -23,6 +25,7 @@
     {
         "key": "user_defined_node_#1.image",
         "schema": "image.v1",
+        "timestamp": "2026-01-21T10:43:41.329792",
         "name": "image",
         "scopes": [
             "user_defined_node_#1"
@@ -32,6 +35,7 @@
     {
         "key": "user_defined_node_#2.binary_image",
         "schema": "image.v1",
+        "timestamp": "2026-01-21T10:43:41.358119",
         "name": "binary_image",
         "scopes": [
             "user_defined_node_#2"

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Union, cast
+from typing import Any, Dict, List, Union
 
 from aiwin_resource.base import Resource, ResourceContext
 from aiwin_resource.plugins.vision.input.usb_device.v1.main import \
@@ -9,11 +9,7 @@ class UsbDevicesResource(Resource):
     """Usb devices resource implementation."""
 
     def __init__(self, ctx: Union[ResourceContext, Dict[str, Any]]):
-        ctx_dict: Dict[str, Any] = dict(ctx)
-        self.data: List[int] = cast(List[int], ctx_dict['data'])
-        self.scopes: List[str] = cast(List[str], ctx_dict['scopes'])
-        self.name: str = cast(str, ctx_dict['name'])
-        self.key: str = f"{'.'.join(self.scopes)}.{self.name}"
+        super().__init__(ctx)
 
         self._siblings: List[Resource] = []
         for device_id in self.data:
@@ -31,6 +27,7 @@ class UsbDevicesResource(Resource):
             'key': self.key,
             'schema': 'vision.input.usb_devices.v1',
             'name': self.name,
+            'timestamp': self.timestamp.isoformat(),
             'scopes': self.scopes,
             'data': self.data
         }]

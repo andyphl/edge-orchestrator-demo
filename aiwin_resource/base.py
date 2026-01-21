@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Any, Dict, List, Literal, Protocol, TypedDict, Union
 
 
@@ -55,6 +56,7 @@ class Resource(ABC):
         self.scopes: List[str] = ctx_dict['scopes']
         self.name: str = ctx_dict['name']
         self.key: str = f"{'.'.join(self.scopes)}.{self.name}"
+        self.timestamp = datetime.now()
 
     @abstractmethod
     def get_sibling_resources(self) -> List['Resource']:

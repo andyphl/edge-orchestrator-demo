@@ -37,6 +37,7 @@ class ImageResource(Resource):
         return [{
             'key': f"{'.'.join(self.scopes)}.{self.name}",
             'schema': 'image.v1',
+            'timestamp': self.timestamp.isoformat(),
             'name': self.name,
             'scopes': self.scopes,
             'data': f"http://localhost:8000/file/{self._filename}"
