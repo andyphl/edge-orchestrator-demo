@@ -1,0 +1,15 @@
+{
+  "name": "cast_unknown",
+  "scope": "condition",
+  "tags": ["type casting"],
+  "description": "Type cast unknown resource to specific type of resource",
+  "author": "John Doe",
+  "version": "1.0.0",
+  "homepage": "https://github.com/john-doe/cast-unknown",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/john-doe/cast-unknown.git"
+  },
+  "dependencies": {},
+  "backend_entrypoint": "main.py#CastResourceNode"
+}

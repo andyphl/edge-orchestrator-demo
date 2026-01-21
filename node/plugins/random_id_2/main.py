@@ -24,9 +24,19 @@ class BinarizationNode(BaseNode):
         cfg = self.cfg['config']
         image_resource = self.ctx['resource'].get(cfg['image'])
 
-        image = image_resource.get_data()
-        gray = cast(MatLike, cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-                    if len(image.shape) == 3 else image)
+        if image_resource is None:
+            raise ValueError("Image resource is not found")
+
+        image = cast(MatLike | None, image_resource.get_data())
+
+        if image is None:
+            raise ValueError("Image resource is not found")
+
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        if len(image.shape) == 3:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = image
         _, binary_image = cv2.threshold(gray, 128, 255, cv2.THRESH_BINARY)
 
         self._binary_image_resource = ImageResource({

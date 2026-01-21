@@ -1,41 +1,39 @@
-from typing import Any, Dict, List, TypeVar, Union
+from typing import Any, Callable, Dict, List, Union
 
 from aiwin_resource.base import Resource, ResourceContext
 
-
 """
-Schema:
 {
-    "schema": "number.v1",
+    "schema": "unknown.v1",
     "kind": "primitive",
 }
 """
 
-TData = TypeVar('TData', float, int, complex)
 
-
-class NumberResource(Resource[TData]):
-    """Number resource implementation."""
+class UnknownResource(Resource[Any]):
+    _serialize_fn: Callable[[Any], Any] | None = None
 
     def __init__(self, ctx: Union[ResourceContext, Dict[str, Any]]):
         super().__init__(ctx)
-        self._generate_siblings = ctx.get('generate_siblings', False)
+        self._serialize_fn = ctx.get('serialize_fn')
 
     def get_sibling_resources(self) -> List[Resource[Any]]:
         return []
 
     def serialize(self) -> List[Dict[str, Any]]:
+        if self._serialize_fn is None:
+            raise ValueError("serialize_fn is not set")
         return [{
-            'key': f"{'.'.join(self._scopes)}.{self._name}",
-            'schema': 'number.v1',
+            'key': self._key,
+            'schema': 'unknown.v1',
             'name': self._name,
             'timestamp': self._timestamp.isoformat(),
             'scopes': self._scopes,
-            'data': self._data
+            'data': self._serialize_fn(self._data)
         }]
 
-    def from_serialized(self, serialized: Dict[str, Any]) -> 'NumberResource[TData]':
-        return NumberResource({
+    def from_serialized(self, serialized: Dict[str, Any]) -> 'UnknownResource':
+        return UnknownResource({
             'name': serialized['name'],
             'scopes': serialized['scopes'],
             'data': serialized['data']

@@ -1,0 +1,15 @@
+{
+  "name": "random_condition",
+  "scope": "condition",
+  "tags": ["random", "condition", "loop"],
+  "description": "Random condition node that generates 0 or 1 for loop condition",
+  "author": "John Doe",
+  "version": "1.0.0",
+  "homepage": "https://github.com/john-doe/random-condition",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/john-doe/random-condition.git"
+  },
+  "dependencies": {},
+  "backend_entrypoint": "main.py#RandomConditionNode"
+}

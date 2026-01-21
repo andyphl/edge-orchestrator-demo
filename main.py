@@ -106,7 +106,8 @@ async def run_pipeline(pipeline: List[Dict[str, Any]]):
 
     plugin_map = {
         "webcam": "random_id_1",
-        "binarization": "random_id_2"
+        "binarization": "random_id_2",
+        "cast_resource": "random_id_4",
     }
 
     node_manager = NodeManager()

@@ -1,6 +1,6 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Protocol, TypedDict, Union
+from typing import Any, Dict, Generic, List, Literal, Protocol, TypeVar, TypedDict, Union
 
 
 class BaseSchema(TypedDict, total=False):
@@ -25,10 +25,13 @@ class CollectionSchema(BaseSchema):
 Schema = Union[PrimitiveSchema, ObjectSchema, CollectionSchema]
 
 
-class ResourceProtocol(Protocol):
+TData = TypeVar('TData')
+
+
+class ResourceProtocol(Generic[TData], Protocol):
     """Resource protocol interface."""
 
-    def get_sibling_resources(self) -> List['Resource']:
+    def get_sibling_resources(self) -> List['Resource[TData]']:
         """Get child resources."""
         ...
 
@@ -44,22 +47,28 @@ class ResourceProtocol(Protocol):
 class ResourceContext(TypedDict):
     name: str
     scopes: List[str]
-    data: Any
+    data: Any | None
 
 
-class Resource(ABC):
+class Resource(Generic[TData]):
     """Abstract resource class."""
+    _key: str
+    _name: str
+    _scopes: List[str]
+    _data: TData | None = None
+    _siblings: List['Resource[Any]'] = []
+    _timestamp: datetime
 
     def __init__(self, ctx: Union[ResourceContext, Dict[str, Any]]):
         ctx_dict: Dict[str, Any] = dict(ctx)
-        self.data: Any = ctx_dict['data']
-        self.scopes: List[str] = ctx_dict['scopes']
-        self.name: str = ctx_dict['name']
-        self.key: str = f"{'.'.join(self.scopes)}.{self.name}"
-        self.timestamp = datetime.now()
+        self._name = ctx_dict['name']
+        self._scopes = ctx_dict['scopes']
+        self._key = f"{'.'.join(self._scopes)}.{self._name}"
+        self._data = ctx_dict['data']
+        self._timestamp = datetime.now()
 
     @abstractmethod
-    def get_sibling_resources(self) -> List['Resource']:
+    def get_sibling_resources(self) -> List['Resource[Any]']:
         """Get child resources."""
         ...
 
@@ -69,7 +78,7 @@ class Resource(ABC):
         ...
 
     @abstractmethod
-    def from_serialized(self, serialized: Dict[str, Any]) -> 'Resource':
+    def from_serialized(self, serialized: Dict[str, Any]) -> 'Resource[TData]':
         """Create resource from serialized data."""
         ...
 
@@ -78,14 +87,14 @@ class Resource(ABC):
         """Dispose resource."""
         ...
 
-    def set_data(self, data: Any) -> None:
+    def set_data(self, data: TData) -> None:
         """Set resource data."""
-        self.data = data
+        self._data = data
 
-    def get_data(self) -> Any:
+    def get_data(self) -> TData | None:
         """Get resource data."""
-        return self.data
+        return self._data
 
     def get_key(self) -> str:
         """Get resource key."""
-        return self.key
+        return self._key
