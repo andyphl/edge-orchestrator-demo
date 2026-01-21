@@ -71,6 +71,11 @@ class Resource(ABC):
         """Create resource from serialized data."""
         ...
 
+    @abstractmethod
+    def dispose(self) -> None:
+        """Dispose resource."""
+        ...
+
     def set_data(self, data: Any) -> None:
         """Set resource data."""
         self.data = data

@@ -10,6 +10,9 @@ class BaseStore(Protocol):
     def download(self, filename: str) -> Any:
         ...
 
+    def delete(self, filename: str) -> Any:
+        ...
+
 
 class FileStore(BaseStore):
 
@@ -34,3 +37,6 @@ class FileStore(BaseStore):
 
     def download(self, filename: str) -> Any:
         return requests.get(f"{self.cfg['url']}/file/{filename}")
+
+    def delete(self, filename: str) -> Any:
+        return requests.delete(f"{self.cfg['url']}/file/{filename}")

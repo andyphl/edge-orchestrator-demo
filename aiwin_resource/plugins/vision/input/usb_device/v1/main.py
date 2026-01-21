@@ -33,3 +33,6 @@ class UsbDeviceResource(Resource):
             'scopes': serialized['scopes'],
             'data': serialized['data']
         })
+
+    def dispose(self) -> None:
+        pass  # no-op

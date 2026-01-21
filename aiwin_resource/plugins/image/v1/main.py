@@ -49,3 +49,7 @@ class ImageResource(Resource):
             # data will be image url, convert it to bytes
             'data': requests.get(serialized['data']).content
         })
+
+    def dispose(self) -> None:
+        file_store = FileStore(cfg={"url": "http://localhost:8000"})
+        file_store.delete(self._filename)

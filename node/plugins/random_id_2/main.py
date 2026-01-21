@@ -8,6 +8,8 @@ from node.base import BaseNode, BaseNodeContext
 
 
 class BinarizationNode(BaseNode):
+    _binary_image_resource: ImageResource | None = None
+
     def __init__(self, ctx: BaseNodeContext, config: Dict[str, Any]):
         self.ctx = ctx
         self.cfg = config
@@ -27,16 +29,20 @@ class BinarizationNode(BaseNode):
                     if len(image.shape) == 3 else image)
         _, binary_image = cv2.threshold(gray, 128, 255, cv2.THRESH_BINARY)
 
-        binary_image_resource = ImageResource({
+        self._binary_image_resource = ImageResource({
             'name': 'binary_image',
             'scopes': [self.cfg['id']],
             'data': binary_image
         })
 
         self.ctx['resource'].set(
-            binary_image_resource.get_key(), binary_image_resource)
+            self._binary_image_resource.get_key(), self._binary_image_resource)
 
         # 执行完成后，通知下一个 node
         next_node_index = self.cfg.get('_next_node_index')
         if next_node_index is not None:
             self.ctx['event'].emit(f"node_start_{next_node_index}")
+
+    def dispose(self) -> None:
+        if (self._binary_image_resource is not None):
+            self._binary_image_resource.dispose()

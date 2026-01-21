@@ -62,6 +62,15 @@ async def get_file(file_name: str):
     return FileResponse(file_path)
 
 
+@app.delete("/file/{file_name}")
+async def delete_file(file_name: str):
+    file_path = f"files/{file_name}"
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    os.remove(file_path)
+    return {"message": "File deleted"}
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)

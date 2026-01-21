@@ -9,6 +9,7 @@ from node.base import BaseNode, BaseNodeContext
 
 
 class WebcamNode(BaseNode):
+    _image_resource: ImageResource | None = None
 
     def __init__(self, ctx: BaseNodeContext, config: Dict[str, Any]):
         self.ctx = ctx
@@ -75,15 +76,15 @@ class WebcamNode(BaseNode):
                     f"Received empty frame from device {device_id}. "
                     f"The camera may not be providing valid video data.")
 
-            image_resource = ImageResource({
+            self._image_resource = ImageResource({
                 'name': 'image',
                 'scopes': [self.cfg['id']],
                 'data': frame
             })
 
             self.ctx['resource'].set(
-                image_resource.get_key(), image_resource)
-            
+                self._image_resource.get_key(), self._image_resource)
+
             # 执行完成后，通知下一个 node
             next_node_index = self.cfg.get('_next_node_index')
             if next_node_index is not None:
@@ -92,4 +93,5 @@ class WebcamNode(BaseNode):
             cap.release()
 
     def dispose(self) -> None:
-        pass
+        if (self._image_resource is not None):
+            self._image_resource.dispose()

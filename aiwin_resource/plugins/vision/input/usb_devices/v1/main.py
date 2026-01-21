@@ -46,3 +46,7 @@ class UsbDevicesResource(Resource):
             'scopes': serialized['scopes'],
             'data': serialized['data']
         })
+
+    def dispose(self) -> None:
+        for sibling in self._siblings:
+            sibling.dispose()
