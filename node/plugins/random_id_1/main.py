@@ -14,6 +14,15 @@ class WebcamNode(BaseNode):
         self.ctx = ctx
         self.cfg = config
 
+        self._image_resource = self.ctx['resource_creator'].create('image.v1', {
+            'name': 'image',
+            'scopes': [self.cfg['id']],
+            'data': None,
+            "filename": f"{self.cfg['id']}_image.jpg"
+        })
+        self.ctx['resource_manager'].set(
+            self._image_resource.get_key(), self._image_resource)
+
     def _list_devices(self, max_devices: int = 10) -> List[int]:
         available: List[int] = []
         for i in range(max_devices):
@@ -75,22 +84,29 @@ class WebcamNode(BaseNode):
                     f"Received empty frame from device {device_id}. "
                     f"The camera may not be providing valid video data.")
 
-            self._image_resource = self.ctx['resource_creator'].create('image.v1', {
-                'name': 'image',
-                'scopes': [self.cfg['id']],
-                'data': frame,
-                "filename": f"{self.cfg['id']}_image.jpg"
-            })
+            if self._image_resource is not None:
+                self._image_resource.set_data(frame)
+
+            else:
+                self._image_resource = self.ctx['resource_creator'].create('image.v1', {
+                    'name': 'image',
+                    'scopes': [self.cfg['id']],
+                    'data': frame,
+                    "filename": f"{self.cfg['id']}_image.jpg"
+                })
 
             self.ctx['resource_manager'].set(
                 self._image_resource.get_key(), self._image_resource)
 
             # 执行完成后，通知下一个 node
-            next_node_index = self.cfg.get('_next_node_index')
-            if next_node_index is not None:
-                self.ctx['event'].emit(f"node_start_{next_node_index}")
+
         finally:
             cap.release()
+
+    def next(self) -> None:
+        next_node_index = self.cfg.get('_next_node_index')
+        if next_node_index is not None:
+            self.ctx['event'].emit(f"node_start_{next_node_index}")
 
     def dispose(self) -> None:
         if (self._image_resource is not None):

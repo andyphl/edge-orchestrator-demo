@@ -49,7 +49,7 @@ class BinarizationNode(BaseNode):
         self.ctx['resource_manager'].set(
             self._binary_image_resource.get_key(), self._binary_image_resource)
 
-        # 执行完成后，通知下一个 node
+    def next(self) -> None:
         next_node_index = self.cfg.get('_next_node_index')
         if next_node_index is not None:
             self.ctx['event'].emit(f"node_start_{next_node_index}")

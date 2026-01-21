@@ -16,7 +16,7 @@ class ImageResource(Resource[MatLike]):
     def __init__(self, ctx: ResourceContext, config: Union[ResourceConfig, Dict[str, Any]]):
         super().__init__(ctx, config)
         # Convert numpy array (OpenCV frame) to JPEG bytes if needed
-        self._filename: str = cast(str, ctx.get('filename', 'image.jpg'))
+        self._filename: str = cast(str, config.get('filename', 'image.jpg'))
 
         if isinstance(self._data, np.ndarray):
             # OpenCV uses BGR, encode to JPEG

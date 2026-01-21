@@ -75,12 +75,18 @@ class CastResourceNode(BaseNode):
                 raise ValueError(f"Source resource {source} not found")
             data = source_resource.get_data()
             casted_data = data if data is None else cast_fn(data)
-
-            self.ctx['resource_manager'].set(source, self.ctx['resource_creator'].create('string.v1', {
+            casted_resource = self.ctx['resource_creator'].create('string.v1', {
                 'name': name,
                 'scopes': [self.cfg['id']],
                 'data': casted_data
-            }))
+            })
+            self.ctx['resource_manager'].set(
+                casted_resource.get_key(), casted_resource)
+
+    def next(self) -> None:
+        next_node_index = self.cfg.get('_next_node_index')
+        if next_node_index is not None:
+            self.ctx['event'].emit(f"node_start_{next_node_index}")
 
     def dispose(self) -> None:
         pass

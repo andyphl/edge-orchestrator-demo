@@ -37,6 +37,12 @@ class BaseNode(Protocol):
         """
         pass
 
+    def next(self) -> None:
+        """
+        Next the node.
+        """
+        pass
+
     def dispose(self) -> None:
         """
         Dispose the node.

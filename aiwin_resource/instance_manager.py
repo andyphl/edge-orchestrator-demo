@@ -17,3 +17,6 @@ class ResourceInstanceManager:
         for resource in self._registry.values():
             serialized.extend(resource.serialize())
         return serialized
+
+    def clear_all(self) -> None:
+        self._registry.clear()

@@ -1,22 +1,35 @@
 [
     {
-        "key": "node_2.devices_as_string",
-        "schema": "string.v1",
-        "timestamp": "2026-01-21T17:31:58.550164",
-        "name": "devices_as_string",
-        "data": "[0]",
-        "scopes": [
-            "node_2"
-        ]
-    },
-    {
         "key": "node_1.image",
         "schema": "image.v1",
-        "timestamp": "2026-01-21T17:31:58.534847",
+        "timestamp": "2026-01-21T18:11:57.182899",
         "name": "image",
         "scopes": [
             "node_1"
         ],
-        "data": "http://localhost:8000/file/image.jpg"
+        "data": "http://localhost:8000/file/node_1_image.jpg"
+    },
+    {
+        "key": "node_1.usb_devices",
+        "schema": "vision.input.usb_devices.v1",
+        "name": "usb_devices",
+        "timestamp": "2026-01-21T18:11:58.036259",
+        "scopes": [
+            "node_1"
+        ],
+        "data": [
+            0
+        ]
+    },
+    {
+        "key": "node_1.usb_devices.usb_device_0",
+        "schema": "vision.input.usb_device.v1",
+        "name": "usb_device_0",
+        "timestamp": "2026-01-21T18:11:58.036277",
+        "scopes": [
+            "node_1",
+            "usb_devices"
+        ],
+        "data": 0
     }
 ]

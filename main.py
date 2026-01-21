@@ -150,7 +150,11 @@ async def run_pipeline(pipeline: List[Dict[str, Any]]):
     file_store = FileStore(cfg={"url": "http://localhost:8000"})
     event_emitter = EventEmitter()
     node_context = BaseNodeContext(
-        resource_manager=resource_manager, resource_creator=resource_creator, file_store=file_store, event=event_emitter)
+        resource_manager=resource_manager,
+        resource_creator=resource_creator,
+        file_store=file_store,
+        event=event_emitter
+    )
 
     def run_pipeline_thread(pipeline: List[Dict[str, Any]]):
         # 初始化所有 node 並調用 prepare，同時為每個 node 配置下一個 node 的索引
@@ -178,6 +182,7 @@ async def run_pipeline(pipeline: List[Dict[str, Any]]):
                 node_instance.execute()
                 json.dump(resource_manager.serialize(),
                           open(f"resource_after_execute_node_{node_index}.json", "w"), indent=4)
+                node_instance.next()
 
             return execute_node
 

@@ -43,9 +43,10 @@ class RandomConditionNode(BaseNode):
         self.ctx['resource_manager'].set(
             self._number_resource.get_key(), self._number_resource)
 
-        # 返回隨機值，用於條件路由判斷
-        # 注意：路由會由 main.py 中的 routing 配置自動處理
-        return random_value
+    def next(self) -> None:
+        next_node_index = self.cfg.get('_next_node_index')
+        if next_node_index is not None:
+            self.ctx['event'].emit(f"node_start_{next_node_index}")
 
     def dispose(self) -> None:
         """清理資源"""

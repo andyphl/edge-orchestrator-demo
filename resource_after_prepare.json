@@ -1,9 +1,19 @@
 [
     {
+        "key": "node_1.image",
+        "schema": "image.v1",
+        "timestamp": "2026-01-21T18:11:57.182899",
+        "name": "image",
+        "scopes": [
+            "node_1"
+        ],
+        "data": "http://localhost:8000/file/node_1_image.jpg"
+    },
+    {
         "key": "node_1.usb_devices",
         "schema": "vision.input.usb_devices.v1",
         "name": "usb_devices",
-        "timestamp": "2026-01-21T17:31:57.621082",
+        "timestamp": "2026-01-21T18:11:58.036259",
         "scopes": [
             "node_1"
         ],
@@ -15,7 +25,7 @@
         "key": "node_1.usb_devices.usb_device_0",
         "schema": "vision.input.usb_device.v1",
         "name": "usb_device_0",
-        "timestamp": "2026-01-21T17:31:57.621093",
+        "timestamp": "2026-01-21T18:11:58.036277",
         "scopes": [
             "node_1",
             "usb_devices"
