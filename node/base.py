@@ -1,12 +1,14 @@
 from typing import Any, Dict, Protocol, TypedDict
 
-from aiwin_resource.manager import ResourceManager
+from aiwin_resource.instance_manager import ResourceInstanceManager
+from aiwin_resource.creator import ResourceCreator
 from event_emitter import EventEmitter
 from store.file import BaseStore
 
 
 class BaseNodeContext(TypedDict):
-    resource: ResourceManager
+    resource_manager: ResourceInstanceManager
+    resource_creator: ResourceCreator
     file_store: BaseStore
     event: EventEmitter
 

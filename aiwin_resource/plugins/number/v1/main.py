@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, TypeVar, Union
 
-from aiwin_resource.base import Resource, ResourceContext
+from aiwin_resource.base import Resource, ResourceConfig, ResourceContext
 
 
 """
@@ -16,9 +16,10 @@ TData = TypeVar('TData', float, int, complex)
 
 class NumberResource(Resource[TData]):
     """Number resource implementation."""
+    schema: str = "number.v1"
 
-    def __init__(self, ctx: Union[ResourceContext, Dict[str, Any]]):
-        super().__init__(ctx)
+    def __init__(self, ctx: ResourceContext, config: Union[ResourceConfig, Dict[str, Any]]):
+        super().__init__(ctx, config)
         self._generate_siblings = ctx.get('generate_siblings', False)
 
     def get_sibling_resources(self) -> List[Resource[Any]]:
@@ -35,7 +36,7 @@ class NumberResource(Resource[TData]):
         }]
 
     def from_serialized(self, serialized: Dict[str, Any]) -> 'NumberResource[TData]':
-        return NumberResource({
+        return NumberResource(self._ctx, {
             'name': serialized['name'],
             'scopes': serialized['scopes'],
             'data': serialized['data']

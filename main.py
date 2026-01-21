@@ -10,7 +10,8 @@ from fastapi import (FastAPI, File, Form, HTTPException, UploadFile, WebSocket,
                      WebSocketDisconnect)
 from starlette.responses import FileResponse
 
-from aiwin_resource.manager import ResourceManager
+from aiwin_resource.creator import resource_creator
+from aiwin_resource.instance_manager import ResourceInstanceManager
 from event_emitter import EventEmitter
 from node.base import BaseNode, BaseNodeContext
 from node.manager import NodeManager
@@ -127,11 +128,11 @@ async def run_pipeline(pipeline: List[Dict[str, Any]]):
         backend_class = getattr(backend_module, backend_class)
         node_manager.register(plugin_name, backend_class)
 
-    resource_manager = ResourceManager()
+    resource_manager = ResourceInstanceManager()
     file_store = FileStore(cfg={"url": "http://localhost:8000"})
     event_emitter = EventEmitter()
     node_context = BaseNodeContext(
-        resource=resource_manager, file_store=file_store, event=event_emitter)
+        resource_manager=resource_manager, resource_creator=resource_creator, file_store=file_store, event=event_emitter)
 
     def run_pipeline_thread(pipeline: List[Dict[str, Any]]):
         # 初始化所有 node 並調用 prepare，同時為每個 node 配置下一個 node 的索引

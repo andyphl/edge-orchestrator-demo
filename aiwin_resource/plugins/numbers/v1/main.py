@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, TypeVar, Union
 
-from aiwin_resource.base import Resource, ResourceContext
+from aiwin_resource.base import Resource, ResourceConfig, ResourceContext
 from aiwin_resource.plugins.number.v1.main import NumberResource
 
 
@@ -18,20 +18,22 @@ TData = TypeVar('TData', float, int, complex)
 
 class NumbersResource(Resource[List[TData]]):
     """Numbers collection resource implementation."""
+    schema: str = "numbers.v1"
+
     _generate_siblings: bool = False
     _siblings: List[Resource[TData]] = []
 
-    def __init__(self, ctx: Union[ResourceContext, Dict[str, Any]]):
-        super().__init__(ctx)
+    def __init__(self, ctx: ResourceContext, config: Union[ResourceConfig, Dict[str, Any]]):
+        super().__init__(ctx, config)
         # 確保 data 是 list 類型
         if not isinstance(self._data, (list, tuple, set)) and self._data is not None:
             raise ValueError(
                 f"NumbersResource data must be a list, tuple, or set, got {type(self._data)}")
 
-        self._generate_siblings = ctx.get('generate_siblings', False)
+        self._generate_siblings = config.get('generate_siblings', False)
         if (self._generate_siblings and self._data is not None):
             for idx in range(len(self._data)):
-                self._siblings.append(NumberResource({
+                self._siblings.append(NumberResource(self._ctx, {
                     'name': f"number_{idx}",
                     'scopes': [*self._scopes, self._name],
                     'data': self._data[idx]
@@ -57,7 +59,7 @@ class NumbersResource(Resource[List[TData]]):
         }]
 
     def from_serialized(self, serialized: Dict[str, Any]) -> 'NumbersResource[TData]':
-        return NumbersResource({
+        return NumbersResource(self._ctx, {
             'name': serialized['name'],
             'scopes': serialized['scopes'],
             'data': serialized['data']
@@ -76,7 +78,7 @@ class NumbersResource(Resource[List[TData]]):
             if (idx < len(self._siblings)):
                 self._siblings[idx].set_data(data[idx])
             else:
-                self._siblings.append(NumberResource({
+                self._siblings.append(NumberResource(self._ctx, {
                     'name': f"number_{idx}",
                     'scopes': [*self._scopes, self._name],
                     'data': data[idx]

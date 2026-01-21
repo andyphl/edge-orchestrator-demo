@@ -2,6 +2,8 @@ from abc import abstractmethod
 from datetime import datetime
 from typing import Any, Dict, Generic, List, Literal, Protocol, TypeVar, TypedDict, Union
 
+from aiwin_resource.creator import ResourceCreator
+
 
 class BaseSchema(TypedDict, total=False):
     schema: str
@@ -45,6 +47,10 @@ class ResourceProtocol(Generic[TData], Protocol):
 
 
 class ResourceContext(TypedDict):
+    creator: ResourceCreator
+
+
+class ResourceConfig(TypedDict):
     name: str
     scopes: List[str]
     data: Any | None
@@ -52,6 +58,8 @@ class ResourceContext(TypedDict):
 
 class Resource(Generic[TData]):
     """Abstract resource class."""
+    schema: str
+    _ctx: ResourceContext
     _key: str
     _name: str
     _scopes: List[str]
@@ -59,12 +67,12 @@ class Resource(Generic[TData]):
     _siblings: List['Resource[Any]'] = []
     _timestamp: datetime
 
-    def __init__(self, ctx: Union[ResourceContext, Dict[str, Any]]):
-        ctx_dict: Dict[str, Any] = dict(ctx)
-        self._name = ctx_dict['name']
-        self._scopes = ctx_dict['scopes']
+    def __init__(self, ctx: ResourceContext, config: Union[ResourceConfig, Dict[str, Any]]):
+        self._ctx = ctx
+        self._name = config['name']
+        self._scopes = config['scopes']
         self._key = f"{'.'.join(self._scopes)}.{self._name}"
-        self._data = ctx_dict['data']
+        self._data = config['data']
         self._timestamp = datetime.now()
 
     @abstractmethod

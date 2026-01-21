@@ -5,7 +5,7 @@ import numpy as np
 import requests
 from cv2.typing import MatLike
 
-from aiwin_resource.base import Resource, ResourceContext
+from aiwin_resource.base import Resource, ResourceConfig, ResourceContext
 from store.file import FileStore
 
 
@@ -13,8 +13,8 @@ class ImageResource(Resource[MatLike]):
     """Image resource implementation."""
     _file_store = FileStore(cfg={"url": "http://localhost:8000"})
 
-    def __init__(self, ctx: Union[ResourceContext, Dict[str, Any]]):
-        super().__init__(ctx)
+    def __init__(self, ctx: ResourceContext, config: Union[ResourceConfig, Dict[str, Any]]):
+        super().__init__(ctx, config)
         # Convert numpy array (OpenCV frame) to JPEG bytes if needed
         self._filename: str = cast(str, ctx.get('filename', 'image.jpg'))
 
@@ -47,12 +47,16 @@ class ImageResource(Resource[MatLike]):
         }]
 
     def from_serialized(self, serialized: Dict[str, Any]) -> 'ImageResource':
-        return ImageResource({
-            'name': serialized['name'],
-            'scopes': serialized['scopes'],
-            # data will be image url, convert it to bytes
-            'data': requests.get(serialized['data']).content
-        })
+
+        return cast(
+            ImageResource,
+            self._ctx['creator'].create('image.v1', {
+                'name': serialized['name'],
+                'scopes': serialized['scopes'],
+                # data will be image url, convert it to bytes
+                'data': requests.get(serialized['data']).content
+            })
+        )
 
     def dispose(self) -> None:
 

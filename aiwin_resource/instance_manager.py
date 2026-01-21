@@ -3,7 +3,7 @@ from typing import Any, Dict, List
 from aiwin_resource.base import Resource
 
 
-class ResourceManager:
+class ResourceInstanceManager:
     _registry: Dict[str, Resource[Any]] = {}
 
     def set(self, key: str, resource: Resource[Any]) -> None:

@@ -1,7 +1,6 @@
 from typing import Any, Callable, Dict, Mapping
 
-from aiwin_resource.plugins.string.v1.main import StringResource
-from aiwin_resource.plugins.unknown.v1.main import UnknownResource
+from aiwin_resource.base import Resource
 from node.base import BaseNode, BaseNodeContext
 import ast
 
@@ -38,7 +37,7 @@ ALLOWED_NODES = (
 
 
 class CastResourceNode(BaseNode):
-    _unknown_resource: UnknownResource | None = None
+    _unknown_resource: Resource[Any] | None = None
     _target_schema: str | None = None
 
     def __init__(self, ctx: BaseNodeContext, config: Dict[str, Any]):
@@ -71,13 +70,13 @@ class CastResourceNode(BaseNode):
             raise ValueError("cast_fn is not found")
         # Here we handle casting to StringResource as an example
         if target_schema == "string.v1":
-            source_resource = self.ctx['resource'].get(source)
+            source_resource = self.ctx['resource_manager'].get(source)
             if source_resource is None:
                 raise ValueError(f"Source resource {source} not found")
             data = source_resource.get_data()
             casted_data = data if data is None else cast_fn(data)
 
-            self.ctx['resource'].set(source, StringResource({
+            self.ctx['resource_manager'].set(source, self.ctx['resource_creator'].create('string.v1', {
                 'name': name,
                 'scopes': [self.cfg['id']],
                 'data': casted_data

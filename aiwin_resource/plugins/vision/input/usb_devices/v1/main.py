@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Union
 
-from aiwin_resource.base import Resource, ResourceContext
+from aiwin_resource.base import Resource, ResourceConfig, ResourceContext
 from aiwin_resource.plugins.vision.input.usb_device.v1.main import \
     UsbDeviceResource
 
@@ -17,16 +17,17 @@ Schema:
 
 class UsbDevicesResource(Resource[List[int]]):
     """Usb devices resource implementation."""
+    schema: str = "vision.input.usb_devices.v1"
     _siblings: List[Resource[int]] = []
 
-    def __init__(self, ctx: Union[ResourceContext, Dict[str, Any]]):
-        super().__init__(ctx)
+    def __init__(self, ctx: ResourceContext, config: Union[ResourceConfig, Dict[str, Any]]):
+        super().__init__(ctx, config)
 
         if self._data is None:
             return
 
         for device_id in self._data:
-            self._siblings.append(UsbDeviceResource({
+            self._siblings.append(UsbDeviceResource(self._ctx, {
                 'name': f"usb_device_{device_id}",
                 'scopes': [*self._scopes, self._name],
                 'data': device_id
@@ -51,7 +52,7 @@ class UsbDevicesResource(Resource[List[int]]):
         return serialized
 
     def from_serialized(self, serialized: Dict[str, Any]) -> 'UsbDevicesResource':
-        return UsbDevicesResource({
+        return UsbDevicesResource(self._ctx, {
             'name': serialized['name'],
             'scopes': serialized['scopes'],
             'data': serialized['data']

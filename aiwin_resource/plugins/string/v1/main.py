@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Union, cast
 
-from aiwin_resource.base import Resource, ResourceContext
+from aiwin_resource.base import Resource, ResourceConfig, ResourceContext
 
 """
 {
@@ -12,9 +12,10 @@ from aiwin_resource.base import Resource, ResourceContext
 
 class StringResource(Resource[str]):
     """String resource implementation."""
+    schema: str = "string.v1"
 
-    def __init__(self, ctx: Union[ResourceContext, Dict[str, Any]]):
-        super().__init__(ctx)
+    def __init__(self, ctx: ResourceContext, config: Union[ResourceConfig, Dict[str, Any]]):
+        super().__init__(ctx, config)
         self.data: str = cast(str, ctx.get('data'))
 
     def get_sibling_resources(self) -> List[Resource[Any]]:
@@ -31,7 +32,7 @@ class StringResource(Resource[str]):
         }]
 
     def from_serialized(self, serialized: Dict[str, Any]) -> 'StringResource':
-        return StringResource({
+        return StringResource(self._ctx, {
             'name': serialized['name'],
             'scopes': serialized['scopes'],
             'data': serialized['data']

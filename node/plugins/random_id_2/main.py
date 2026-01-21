@@ -3,12 +3,12 @@ from typing import Any, Dict, cast
 import cv2
 from cv2.typing import MatLike
 
-from aiwin_resource.plugins.image.v1.main import ImageResource
+from aiwin_resource.base import Resource
 from node.base import BaseNode, BaseNodeContext
 
 
 class BinarizationNode(BaseNode):
-    _binary_image_resource: ImageResource | None = None
+    _binary_image_resource: Resource[MatLike] | None = None
 
     def __init__(self, ctx: BaseNodeContext, config: Dict[str, Any]):
         self.ctx = ctx
@@ -22,7 +22,7 @@ class BinarizationNode(BaseNode):
 
     def execute(self) -> Any:
         cfg = self.cfg['config']
-        image_resource = self.ctx['resource'].get(cfg['image'])
+        image_resource = self.ctx['resource_manager'].get(cfg['image'])
 
         if image_resource is None:
             raise ValueError("Image resource is not found")
@@ -39,14 +39,14 @@ class BinarizationNode(BaseNode):
             gray = image
         _, binary_image = cv2.threshold(gray, 128, 255, cv2.THRESH_BINARY)
 
-        self._binary_image_resource = ImageResource({
+        self._binary_image_resource = self.ctx['resource_creator'].create('image.v1', {
             'name': 'binary_image',
             'scopes': [self.cfg['id']],
             'data': binary_image,
             "filename": f"{self.cfg['id']}_binary_image.jpg"
         })
 
-        self.ctx['resource'].set(
+        self.ctx['resource_manager'].set(
             self._binary_image_resource.get_key(), self._binary_image_resource)
 
         # 执行完成后，通知下一个 node

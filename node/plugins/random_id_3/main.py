@@ -1,14 +1,14 @@
 import random
 from typing import Any, Dict
 
-from aiwin_resource.plugins.number.v1.main import NumberResource
+from aiwin_resource.base import Resource
 from node.base import BaseNode, BaseNodeContext
 
 
 class RandomConditionNode(BaseNode):
     """隨機條件節點：產生隨機 0 或 1，用於循環條件判斷"""
 
-    _number_resource: NumberResource[int] | None = None
+    _number_resource: Resource[int] | None = None
 
     def __init__(self, ctx: BaseNodeContext, config: Dict[str, Any]):
         self.ctx = ctx
@@ -33,14 +33,14 @@ class RandomConditionNode(BaseNode):
         random_value = random.randint(0, 1)
 
         # 創建 NumberResource
-        self._number_resource = NumberResource({
+        self._number_resource = self.ctx['resource_creator'].create('number.v1', {
             'name': 'result',
             'scopes': [self.cfg['id']],
             'data': random_value
         })
 
         # 將 resource 存入 resource manager
-        self.ctx['resource'].set(
+        self.ctx['resource_manager'].set(
             self._number_resource.get_key(), self._number_resource)
 
         # 返回隨機值，用於條件路由判斷

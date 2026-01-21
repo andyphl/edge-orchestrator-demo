@@ -1,6 +1,6 @@
 from typing import Any, Callable, Dict, List, Union
 
-from aiwin_resource.base import Resource, ResourceContext
+from aiwin_resource.base import Resource, ResourceConfig, ResourceContext
 
 """
 {
@@ -11,10 +11,12 @@ from aiwin_resource.base import Resource, ResourceContext
 
 
 class UnknownResource(Resource[Any]):
+    schema: str = "unknown.v1"
+
     _serialize_fn: Callable[[Any], Any] | None = None
 
-    def __init__(self, ctx: Union[ResourceContext, Dict[str, Any]]):
-        super().__init__(ctx)
+    def __init__(self, ctx: ResourceContext, config: Union[ResourceConfig, Dict[str, Any]]):
+        super().__init__(ctx, config)
         self._serialize_fn = ctx.get('serialize_fn')
 
     def get_sibling_resources(self) -> List[Resource[Any]]:
@@ -33,7 +35,7 @@ class UnknownResource(Resource[Any]):
         }]
 
     def from_serialized(self, serialized: Dict[str, Any]) -> 'UnknownResource':
-        return UnknownResource({
+        return UnknownResource(self._ctx, {
             'name': serialized['name'],
             'scopes': serialized['scopes'],
             'data': serialized['data']

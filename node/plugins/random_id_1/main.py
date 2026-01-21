@@ -1,15 +1,14 @@
 from typing import Any, Dict, List
 
 import cv2
+from cv2.typing import MatLike
 
-from aiwin_resource.plugins.image.v1.main import ImageResource
-from aiwin_resource.plugins.vision.input.usb_devices.v1.main import \
-    UsbDevicesResource
+from aiwin_resource.base import Resource
 from node.base import BaseNode, BaseNodeContext
 
 
 class WebcamNode(BaseNode):
-    _image_resource: ImageResource | None = None
+    _image_resource: Resource[MatLike] | None = None
 
     def __init__(self, ctx: BaseNodeContext, config: Dict[str, Any]):
         self.ctx = ctx
@@ -28,12 +27,12 @@ class WebcamNode(BaseNode):
         # provide all available devices as resources
         devices = self._list_devices()
 
-        use_devices_resource = UsbDevicesResource({
+        use_devices_resource = self.ctx['resource_creator'].create('vision.input.usb_devices.v1', {
             'name': 'usb_devices',
             'scopes': [self.cfg['id']],
-            'data': devices
+            'data': devices,
         })
-        self.ctx['resource'].set(
+        self.ctx['resource_manager'].set(
             use_devices_resource.get_key(), use_devices_resource)
 
     def setup(self, config: Dict[str, Any]) -> None:
@@ -76,14 +75,14 @@ class WebcamNode(BaseNode):
                     f"Received empty frame from device {device_id}. "
                     f"The camera may not be providing valid video data.")
 
-            self._image_resource = ImageResource({
+            self._image_resource = self.ctx['resource_creator'].create('image.v1', {
                 'name': 'image',
                 'scopes': [self.cfg['id']],
                 'data': frame,
                 "filename": f"{self.cfg['id']}_image.jpg"
             })
 
-            self.ctx['resource'].set(
+            self.ctx['resource_manager'].set(
                 self._image_resource.get_key(), self._image_resource)
 
             # 执行完成后，通知下一个 node
