@@ -1,35 +1,89 @@
 [
     {
-        "key": "node_1.image",
+        "key": "node_a.image",
         "schema": "image.v1",
-        "timestamp": "2026-01-21T18:37:01.832199",
+        "timestamp": "2026-01-22T00:42:34.168077",
         "name": "image",
         "scopes": [
-            "node_1"
+            "node_a"
         ],
-        "data": "http://localhost:8000/file/node_1_image.jpg"
+        "data": "http://localhost:8000/file/node_a_image.jpg"
     },
     {
-        "key": "node_1.usb_devices",
+        "key": "node_a.usb_devices",
         "schema": "vision.input.usb_devices.v1",
         "name": "usb_devices",
-        "timestamp": "2026-01-21T18:37:04.294924",
+        "timestamp": "2026-01-22T00:42:34.613008",
         "scopes": [
-            "node_1"
+            "node_a"
         ],
         "data": [
             0
         ]
     },
     {
-        "key": "node_1.usb_devices.usb_device_0",
+        "key": "node_a.usb_devices.usb_device_0",
         "schema": "vision.input.usb_device.v1",
         "name": "usb_device_0",
-        "timestamp": "2026-01-21T18:37:04.294951",
+        "timestamp": "2026-01-22T00:40:42.295641",
         "scopes": [
-            "node_1",
+            "node_a",
             "usb_devices"
         ],
         "data": 0
+    },
+    {
+        "key": "node_a.usb_devices.usb_device_0",
+        "schema": "vision.input.usb_device.v1",
+        "name": "usb_device_0",
+        "timestamp": "2026-01-22T00:41:35.662019",
+        "scopes": [
+            "node_a",
+            "usb_devices"
+        ],
+        "data": 0
+    },
+    {
+        "key": "node_a.usb_devices.usb_device_0",
+        "schema": "vision.input.usb_device.v1",
+        "name": "usb_device_0",
+        "timestamp": "2026-01-22T00:41:47.538820",
+        "scopes": [
+            "node_a",
+            "usb_devices"
+        ],
+        "data": 0
+    },
+    {
+        "key": "node_a.usb_devices.usb_device_0",
+        "schema": "vision.input.usb_device.v1",
+        "name": "usb_device_0",
+        "timestamp": "2026-01-22T00:42:23.363437",
+        "scopes": [
+            "node_a",
+            "usb_devices"
+        ],
+        "data": 0
+    },
+    {
+        "key": "node_a.usb_devices.usb_device_0",
+        "schema": "vision.input.usb_device.v1",
+        "name": "usb_device_0",
+        "timestamp": "2026-01-22T00:42:34.613019",
+        "scopes": [
+            "node_a",
+            "usb_devices"
+        ],
+        "data": 0
+    },
+    {
+        "key": "node_1.binary_image",
+        "schema": "image.v1",
+        "timestamp": "2026-01-22T00:42:27.380259",
+        "name": "binary_image",
+        "scopes": [
+            "node_1"
+        ],
+        "data": "http://localhost:8000/file/node_1_binary_image.jpg"
     }
 ]

@@ -26,12 +26,12 @@ class ImageResource(Resource[MatLike]):
             if not success:
                 raise ValueError("Failed to encode image to JPEG")
             image_data = encoded_image.tobytes()
-            """
-            Just for demo purpose, DO NOT USE THIS IN PRODUCTION, serialize strategy
-            should be injectable, so that we can use different file store for different 
-            environments, e.g. local file store, s3 file store, base64 etc.
-            """
-            self._file_store.upload(self._filename, image_data)
+            # """
+            # Just for demo purpose, DO NOT USE THIS IN PRODUCTION, serialize strategy
+            # should be injectable, so that we can use different file store for different
+            # environments, e.g. local file store, s3 file store, base64 etc.
+            # """
+            # self._file_store.upload(self._filename, image_data)
 
     def get_sibling_resources(self) -> List[Resource[Any]]:
         return []
@@ -61,11 +61,18 @@ class ImageResource(Resource[MatLike]):
 
     def set_data(self, data: MatLike) -> None:
         super().set_data(data)
-        if isinstance(self._data, np.ndarray):
-            # OpenCV uses BGR, encode to JPEG
-            success, encoded_image = cv2.imencode(
-                '.jpg', self._data)
-            if not success:
-                raise ValueError("Failed to encode image to JPEG")
-            image_data = encoded_image.tobytes()
-            self._file_store.upload(self._filename, image_data)
+        # 使用更安全的類型檢查，避免 MatLike Protocol 導致的遞歸錯誤
+        # 直接檢查是否有 shape 屬性（numpy array 和 OpenCV Mat 都有）
+        if self._data is not None and hasattr(self._data, 'shape') and hasattr(self._data, 'dtype'):
+            try:
+                # OpenCV uses BGR, encode to JPEG
+                # 使用 Any 類型避免類型檢查問題
+                image_data_any: Any = self._data
+                success, encoded_image = cv2.imencode('.jpg', image_data_any)
+                if not success:
+                    raise ValueError("Failed to encode image to JPEG")
+                image_data = encoded_image.tobytes()
+                self._file_store.upload(self._filename, image_data)
+            except Exception as e:
+                # 如果上傳失敗，記錄但不影響主流程
+                print(f"Warning: Failed to upload image to file store: {e}")

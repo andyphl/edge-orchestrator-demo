@@ -7,6 +7,7 @@ requires-python = ">=3.10"
 dependencies = [
     "fastapi[standard]>=0.128.0",
     "opencv-python>=4.13.0.90",
+    "psutil>=7.2.1",
     "requests>=2.32.5",
     "uvicorn>=0.40.0",
 ]
