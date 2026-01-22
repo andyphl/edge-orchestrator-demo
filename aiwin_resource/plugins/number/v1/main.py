@@ -32,7 +32,7 @@ class NumberResource(Resource[TData]):
             'name': self._name,
             'timestamp': self._timestamp.isoformat(),
             'scopes': self._scopes,
-            'data': self._data
+            'data': self.get_data()
         }]
 
     def from_serialized(self, serialized: Dict[str, Any]) -> 'NumberResource[TData]':

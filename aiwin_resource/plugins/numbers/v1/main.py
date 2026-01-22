@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, TypeVar, Union
 
-from aiwin_resource.base import Resource, ResourceConfig, ResourceContext
+from aiwin_resource.base import DataItem, Resource, ResourceConfig, ResourceContext
 from aiwin_resource.plugins.number.v1.main import NumberResource
 
 
@@ -25,27 +25,26 @@ class NumbersResource(Resource[List[TData]]):
 
     def __init__(self, ctx: ResourceContext, config: Union[ResourceConfig, Dict[str, Any]]):
         super().__init__(ctx, config)
+        data = self.get_data()
         # 確保 data 是 list 類型
-        if not isinstance(self._data, (list, tuple, set)) and self._data is not None:
+        if not isinstance(data, (list, tuple, set)) and data is not None:
             raise ValueError(
-                f"NumbersResource data must be a list, tuple, or set, got {type(self._data)}")
+                f"NumbersResource data must be a list, tuple, or set, got {type(self._pool)}")
 
         self._generate_siblings = config.get('generate_siblings', False)
-        if (self._generate_siblings and self._data is not None):
-            for idx in range(len(self._data)):
+        if (self._generate_siblings and data is not None):
+            for idx in range(len(self._pool)):
                 self._siblings.append(NumberResource(self._ctx, {
                     'name': f"number_{idx}",
                     'scopes': [*self._scopes, self._name],
-                    'data': self._data[idx]
+                    'data': self._pool[idx]
                 }))
 
     def get_sibling_resources(self) -> List[Resource[Any]]:
         return []
 
     def serialize(self) -> List[Dict[str, Any]]:
-
-        data_list: List[TData] | None = list(
-            self._data) if self._data is not None else None
+        data = self.get_data()
 
         return [{
             'key': f"{'.'.join(self._scopes)}.{self._name}",
@@ -55,7 +54,7 @@ class NumbersResource(Resource[List[TData]]):
             'name': self._name,
             'timestamp': self._timestamp.isoformat(),
             'scopes': self._scopes,
-            'data': data_list
+            'data': data
         }]
 
     def from_serialized(self, serialized: Dict[str, Any]) -> 'NumbersResource[TData]':
@@ -68,10 +67,10 @@ class NumbersResource(Resource[List[TData]]):
     def dispose(self) -> None:
         pass  # no-op
 
-    def set_data(self, data: List[TData]) -> None:
-        super().set_data(data)
-        if (not self._generate_siblings or self._data is None):
-            return
+    def set_data(self, data: List[TData] | None) -> DataItem:
+        item = super().set_data(data)
+        if (not self._generate_siblings or data is None):
+            return item
 
         self._siblings = self._siblings[:len(data)]
         for idx in range(len(data)):
@@ -83,3 +82,4 @@ class NumbersResource(Resource[List[TData]]):
                     'scopes': [*self._scopes, self._name],
                     'data': data[idx]
                 }))
+        return item

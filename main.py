@@ -5,6 +5,7 @@ import os
 from enum import Enum
 from threading import Event, Thread
 from typing import Any, Dict, List, Optional
+import traceback
 
 import uvicorn
 from fastapi import (FastAPI, File, Form, HTTPException, UploadFile, WebSocket,
@@ -71,9 +72,11 @@ class PipelineManager:
             backend_class = getattr(backend_module, backend_class)
             self._node_manager.register(plugin_name, backend_class)
 
+        self._event_emitter = EventEmitter()
         self._resource_manager = ResourceInstanceManager()
-
-        self._resource_creator = ResourceCreator()
+        self._resource_creator = ResourceCreator({
+            "event_emitter": self._event_emitter
+        })
         self._resource_creator.register("image.v1", ImageResource)
         self._resource_creator.register("string.v1", StringResource)
         self._resource_creator.register("number.v1", NumberResource)
@@ -85,7 +88,7 @@ class PipelineManager:
             "vision.input.usb_devices.v1", UsbDevicesResource)
 
         self._file_store = FileStore(cfg={"url": "http://localhost:8000"})
-        self._event_emitter = EventEmitter()
+
         self._node_context = BaseNodeContext(
             resource_manager=self._resource_manager,
             resource_creator=self._resource_creator,
@@ -193,6 +196,7 @@ class PipelineManager:
                 return
 
             # 保存 prepare 後的資源快照
+
             json.dump(
                 self._resource_manager.serialize(),
                 open("resource_after_prepare.json", "w"), indent=4
@@ -214,6 +218,7 @@ class PipelineManager:
                         return
 
                     if self._resource_manager is not None:
+
                         json.dump(
                             self._resource_manager.serialize(),
                             open(
@@ -236,6 +241,7 @@ class PipelineManager:
                 self._event_emitter.emit("node_start_0")
 
         except Exception as e:
+            traceback.print_exc()
             print(f"Error in pipeline execution: {e}")
             self.status = PipelineStatus.STOPPED
         finally:
@@ -276,6 +282,26 @@ class ConnectionManager:
 
 
 manager = ConnectionManager()
+
+
+rm = ResourceInstanceManager()
+creator = ResourceCreator({
+    "event_emitter": EventEmitter()
+})
+creator.register("vision.input.usb_devices.v1", UsbDeviceResource)
+
+
+@app.post("/test")
+async def test():
+    rm.clear_all()
+    resource = creator.create("vision.input.usb_devices.v1", {
+        "name": "usb_devices",
+        "scopes": ["test"],
+        "data": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    })
+    rm.set(resource.get_key(), resource)
+    resource.set_data([10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
+    return rm.serialize()
 
 
 @app.get("/")

@@ -13,7 +13,7 @@ from aiwin_resource.base import Resource, ResourceConfig, ResourceContext
 class UnknownResource(Resource[Any]):
     schema: str = "unknown.v1"
 
-    _serialize_fn: Callable[[Any], Any] | None = None
+    _serialize_fn: Callable[[Any | None], Any] | None = None
 
     def __init__(self, ctx: ResourceContext, config: Union[ResourceConfig, Dict[str, Any]]):
         super().__init__(ctx, config)
@@ -31,7 +31,7 @@ class UnknownResource(Resource[Any]):
             'name': self._name,
             'timestamp': self._timestamp.isoformat(),
             'scopes': self._scopes,
-            'data': self._serialize_fn(self._data)
+            'data': self._serialize_fn(self.get_data())
         }]
 
     def from_serialized(self, serialized: Dict[str, Any]) -> 'UnknownResource':

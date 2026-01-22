@@ -27,7 +27,7 @@ class StringResource(Resource[str]):
             'schema': 'string.v1',
             'timestamp': self._timestamp.isoformat(),
             'name': self._name,
-            'data': self._data,
+            'data': self.get_data(),
             'scopes': self._scopes,
         }]
 
