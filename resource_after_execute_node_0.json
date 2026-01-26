@@ -2,20 +2,20 @@
     {
         "key": "node_1.image",
         "schema": "image.v1",
-        "timestamp": "2026-01-22T17:53:19.443276",
-        "version": 2,
+        "timestamp": "2026-01-26T10:35:47.274500",
+        "version": 7,
         "name": "image",
         "scopes": [
             "node_1"
         ],
-        "data": "http://localhost:8000/file/2_node_1_image.jpg"
+        "data": "http://localhost:8000/file/v7_node_1_image.jpg"
     },
     {
         "key": "node_1.usb_devices",
         "schema": "vision.input.usb_devices.v1",
         "name": "usb_devices",
         "version": 1,
-        "timestamp": "2026-01-22T17:53:18.531288",
+        "timestamp": "2026-01-26T10:35:44.908695",
         "scopes": [
             "node_1"
         ],
@@ -32,7 +32,18 @@
             "usb_devices"
         ],
         "version": 1,
-        "timestamp": "2026-01-22T17:53:18.531392",
+        "timestamp": "2026-01-26T10:35:44.908775",
         "data": 0
+    },
+    {
+        "key": "node_2.binary_image",
+        "schema": "image.v1",
+        "timestamp": "2026-01-26T10:35:47.013540",
+        "version": 1,
+        "name": "binary_image",
+        "scopes": [
+            "node_2"
+        ],
+        "data": "http://localhost:8000/file/v1_node_2_binary_image.jpg"
     }
 ]

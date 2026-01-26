@@ -2,7 +2,7 @@
     {
         "key": "node_1.image",
         "schema": "image.v1",
-        "timestamp": "2026-01-22T17:53:17.103095",
+        "timestamp": "2026-01-26T10:35:44.144931",
         "version": 1,
         "name": "image",
         "scopes": [
@@ -15,7 +15,7 @@
         "schema": "vision.input.usb_devices.v1",
         "name": "usb_devices",
         "version": 1,
-        "timestamp": "2026-01-22T17:53:18.531288",
+        "timestamp": "2026-01-26T10:35:44.908695",
         "scopes": [
             "node_1"
         ],
@@ -32,7 +32,7 @@
             "usb_devices"
         ],
         "version": 1,
-        "timestamp": "2026-01-22T17:53:18.531392",
+        "timestamp": "2026-01-26T10:35:44.908775",
         "data": 0
     }
 ]

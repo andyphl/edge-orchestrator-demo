@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipeline Orchestrator - 執行監控</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.idle {
+            background: #6c757d;
+            animation: none;
+        }
+
+        .status-dot.running {
+            background: #28a745;
+        }
+
+        .status-dot.stopped {
+            background: #dc3545;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-start {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-stop {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-clear {
+            background: #6c757d;
+            color: white;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .panel {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+        }
+
+        .panel h2 {
+            margin-bottom: 15px;
+            color: #495057;
+            font-size: 1.3em;
+        }
+
+        .node-list {
+            max-height: 700px;
+            overflow-y: auto;
+        }
+
+        .node-item {
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s;
+        }
+
+        .node-item.running {
+            border-left-color: #28a745;
+            box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+        }
+
+        .node-item.complete {
+            border-left-color: #17a2b8;
+        }
+
+        .node-item.error {
+            border-left-color: #dc3545;
+        }
+
+        .node-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .node-name {
+            font-weight: 600;
+            color: #212529;
+        }
+
+        .node-time {
+            font-size: 0.85em;
+            color: #6c757d;
+        }
+
+        .node-resources {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #495057;
+        }
+
+        .resource-item {
+            background: #e9ecef;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin: 5px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+        }
+
+        /* Video-like continuous frames (image stream) */
+        .node-images {
+            margin-top: 10px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+        }
+
+        .node-video {
+            position: relative;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 2px solid #667eea;
+            background: #0b1020;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .node-video:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.35);
+        }
+
+        .node-video img {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            height: auto;
+            object-fit: cover;
+            display: block;
+        }
+
+        .node-video-label {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            right: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 4px 8px;
+            font-size: 0.75em;
+            text-align: left;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .node-video-badge {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(220, 53, 69, 0.95);
+            color: white;
+            padding: 3px 8px;
+            font-size: 0.72em;
+            font-weight: 700;
+            border-radius: 999px;
+            letter-spacing: 0.06em;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .node-video-badge-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: white;
+            opacity: 0.9;
+            animation: liveBlink 1s infinite;
+        }
+
+        .node-video-fps-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(0, 0, 0, 0.65);
+            color: rgba(255, 255, 255, 0.92);
+            padding: 3px 8px;
+            font-size: 0.72em;
+            font-weight: 700;
+            border-radius: 999px;
+            letter-spacing: 0.02em;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            backdrop-filter: blur(4px);
+        }
+
+        @keyframes liveBlink {
+            0%, 100% { opacity: 0.25; }
+            50% { opacity: 1; }
+        }
+
+
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .image-modal.active {
+            display: flex;
+        }
+
+        .image-modal-content {
+            max-width: 90%;
+            max-height: 90%;
+            position: relative;
+        }
+
+        .image-modal-content img {
+            max-width: 100%;
+            max-height: 90vh;
+            border-radius: 8px;
+        }
+
+        .image-modal-close {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            color: white;
+            font-size: 2em;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.2);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s;
+        }
+
+        .image-modal-close:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        .log-container {
+            max-height: 500px;
+            overflow-y: auto;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 5px;
+            border-radius: 4px;
+        }
+
+        .log-entry.pipeline_start {
+            color: #4ec9b0;
+        }
+
+        .log-entry.node_start {
+            color: #569cd6;
+        }
+
+        .log-entry.node_complete {
+            color: #b5cea8;
+        }
+
+        .log-entry.node_error {
+            color: #f48771;
+        }
+
+        .log-entry.cycle_complete {
+            color: #ce9178;
+        }
+
+        .log-entry.pipeline_stop {
+            color: #dcdcaa;
+        }
+
+        .log-entry.pipeline_error {
+            color: #f48771;
+        }
+
+        .log-time {
+            color: #858585;
+            margin-right: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Pipeline Orchestrator</h1>
+            <p>即時執行監控系統</p>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot idle" id="statusDot"></div>
+                <span id="statusText">狀態: 閒置</span>
+            </div>
+            <div class="controls">
+                <button class="btn-start" onclick="startPipeline()">開始</button>
+                <button class="btn-stop" onclick="stopPipeline()">停止</button>
+                <button class="btn-clear" onclick="clearLogs()">清除日誌</button>
+            </div>
+        </div>
+
+        <div class="content" id="contentContainer">
+            <div class="panel">
+                <h2>📊 節點執行狀態</h2>
+                <div class="node-list" id="nodeList">
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <p>等待 pipeline 開始執行...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>📝 執行日誌</h2>
+                <div class="log-container" id="logContainer">
+                    <div class="log-entry">
+                        <span class="log-time">[系統]</span>
+                        <span>等待連接 WebSocket...</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="image-modal" id="imageModal" onclick="closeImageModal()">
+            <div class="image-modal-content" onclick="event.stopPropagation()">
+                <div class="image-modal-close" onclick="closeImageModal()">×</div>
+                <img id="modalImage" src="" alt="放大圖像">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let nodeStates = {};
+        let cycleCount = 0;
+        let streamUrlByKey = {};
+        let streamStatsByKey = {};
+
+        function toDomId(value) {
+            return String(value).replace(/[^a-zA-Z0-9_-]/g, '_');
+        }
+
+        function streamKey(nodeId, imageName) {
+            return `${nodeId}.${imageName}`;
+        }
+
+        function updateStreamFps(key) {
+            const now = (window.performance && performance.now) ? performance.now() : Date.now();
+            const stat = streamStatsByKey[key] || {};
+            if (typeof stat.lastNow === 'number') {
+                const deltaMs = now - stat.lastNow;
+                if (deltaMs > 0) {
+                    const instantFps = 1000 / deltaMs;
+                    // Exponential moving average to stabilize the display
+                    const alpha = 0.3;
+                    stat.fps = (typeof stat.fps === 'number')
+                        ? (stat.fps * (1 - alpha) + instantFps * alpha)
+                        : instantFps;
+                }
+            }
+            stat.lastNow = now;
+            streamStatsByKey[key] = stat;
+        }
+
+        function getFpsText(nodeId, imageName) {
+            const key = streamKey(nodeId, imageName);
+            const stat = streamStatsByKey[key];
+            if (!stat || typeof stat.fps !== 'number' || !isFinite(stat.fps)) return '';
+            // Clamp to a reasonable range to avoid spikes on first update
+            const fps = Math.max(0, Math.min(240, stat.fps));
+            return `${fps.toFixed(1)} fps`;
+        }
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                addLog('系統', 'WebSocket 連接成功', 'pipeline_start');
+                updateStatus('idle', '狀態: 閒置');
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleMessage(data);
+                } catch (e) {
+                    // 處理非 JSON 消息（舊的 WebSocket 實現）
+                    addLog('系統', event.data, 'log');
+                }
+            };
+
+            ws.onerror = (error) => {
+                addLog('系統', 'WebSocket 連接錯誤', 'pipeline_error');
+            };
+
+            ws.onclose = () => {
+                addLog('系統', 'WebSocket 連接已關閉，嘗試重新連接...', 'pipeline_stop');
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        function handleMessage(data) {
+            if (typeof data === 'string') {
+                addLog('系統', data, 'log');
+                return;
+            }
+
+            const type = data.type;
+            const timestamp = data.timestamp ? new Date(data.timestamp * 1000).toLocaleTimeString() : new Date().toLocaleTimeString();
+
+            switch (type) {
+                case 'pipeline_start':
+                    updateStatus('running', '狀態: 執行中');
+                    addLog('Pipeline', data.message || 'Pipeline 開始執行', 'pipeline_start', timestamp);
+                    nodeStates = {};
+                    cycleCount = 0;
+                    break;
+
+                case 'node_start':
+                    updateNodeState(data.node_index, 'running', data);
+                    addLog(`節點 ${data.node_index}`, `${data.node_name} (${data.node_id}) 開始執行`, 'node_start', timestamp);
+                    break;
+
+                case 'node_complete':
+                    updateNodeState(data.node_index, 'complete', data);
+                    addLog(`節點 ${data.node_index}`, `${data.node_name} (${data.node_id}) 執行完成`, 'node_complete', timestamp);
+                    break;
+
+                case 'node_error':
+                    updateNodeState(data.node_index, 'error', data);
+                    addLog(`節點 ${data.node_index}`, `錯誤: ${data.error}`, 'node_error', timestamp);
+                    break;
+
+                case 'cycle_complete':
+                    cycleCount++;
+                    addLog('Pipeline', `循環 ${cycleCount} 完成，重新開始執行`, 'cycle_complete', timestamp);
+                    break;
+
+                case 'pipeline_stop':
+                    updateStatus('stopped', '狀態: 已停止');
+                    addLog('Pipeline', data.message || 'Pipeline 已停止', 'pipeline_stop', timestamp);
+                    break;
+
+                case 'pipeline_error':
+                    updateStatus('stopped', '狀態: 錯誤');
+                    addLog('Pipeline', `錯誤: ${data.error}`, 'pipeline_error', timestamp);
+                    break;
+            }
+        }
+
+        function updateStatus(status, text) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            
+            statusDot.className = `status-dot ${status}`;
+            statusText.textContent = text;
+        }
+
+        function updateNodeState(nodeIndex, state, data) {
+            nodeStates[nodeIndex] = {
+                state: state,
+                node_id: data.node_id,
+                node_name: data.node_name,
+                resources: data.resources,
+                image_urls: data.image_urls || [],
+                timestamp: data.timestamp
+            };
+            // Keep latest frame url for each stream (video-like update)
+            if (data.image_urls && data.image_urls.length > 0) {
+                data.image_urls.forEach(img => {
+                    const key = streamKey(data.node_id, img.name);
+                    streamUrlByKey[key] = img.url;
+                    updateStreamFps(key);
+                });
+            }
+            renderNodes();
+        }
+
+        // Track existing node elements to avoid full re-render (prevents flicker)
+        let nodeElementsById = {};
+        // Track previous resource state for each node to detect real changes
+        let nodeResourcesCache = {};
+        // Track previous image state for each node to detect real changes
+        let nodeImagesCache = {};
+
+        function renderNodes() {
+            const nodeList = document.getElementById('nodeList');
+            const nodes = Object.keys(nodeStates).sort((a, b) => parseInt(a) - parseInt(b));
+
+            if (nodes.length === 0) {
+                // Clear existing elements
+                nodeElementsById = {};
+                nodeResourcesCache = {};
+                nodeImagesCache = {};
+                nodeList.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <p>等待 pipeline 開始執行...</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const existingIds = new Set();
+            let needsReorder = false;
+
+            // First pass: update existing nodes and check if reordering is needed
+            nodes.forEach((nodeIndex, idx) => {
+                const node = nodeStates[nodeIndex];
+                const nodeId = `node_${nodeIndex}`;
+                existingIds.add(nodeId);
+
+                let nodeElement = nodeElementsById[nodeId];
+                const time = node.timestamp ? new Date(node.timestamp * 1000).toLocaleTimeString() : '';
+                
+                // Generate resources HTML with stable key ordering to avoid false changes
+                let resourcesHtml = '';
+                if (node.resources && typeof node.resources === 'object') {
+                    const resourceKeys = Object.keys(node.resources).sort(); // Sort for stable comparison
+                    if (resourceKeys.length > 0) {
+                        resourcesHtml = resourceKeys.map(key => {
+                            const resource = node.resources[key];
+                            return `<div class="resource-item">${key}: ${resource.schema || 'unknown'}</div>`;
+                        }).join('');
+                    }
+                }
+                
+                // 顯示圖像
+                const images = node.image_urls || [];
+                const imageHtml = images.length > 0 ? `
+                    <div class="node-images">
+                        ${images.map(img => {
+                            const streamId = `stream_${toDomId(streamKey(node.node_id, img.name))}`;
+                            return `
+                            <div class="node-video" onclick="showImageModal('${img.url}', '${img.name}')">
+                                <div class="node-video-badge"><span class="node-video-badge-dot"></span>LIVE</div>
+                                <div class="node-video-fps-badge">${getFpsText(node.node_id, img.name)}</div>
+                                <img
+                                    id="${streamId}"
+                                    src="${streamUrlByKey[streamKey(node.node_id, img.name)] || img.url}"
+                                    alt="${img.name}"
+                                    loading="eager"
+                                >
+                                <div class="node-video-label">
+                                    <span>${img.name}</span>
+                                    <span style="opacity: 0.85;">${node.node_id}.${img.name}</span>
+                                </div>
+                            </div>
+                        `;
+                        }).join('')}
+                    </div>
+                ` : '';
+
+                if (nodeElement) {
+                    // Check if element is in correct position
+                    const currentIndex = Array.from(nodeList.children).indexOf(nodeElement);
+                    if (currentIndex !== idx) {
+                        needsReorder = true;
+                    }
+
+                    // Update existing element (minimal DOM changes to prevent flicker)
+                    const header = nodeElement.querySelector('.node-header');
+                    const nameSpan = header?.querySelector('.node-name');
+                    const timeSpan = header?.querySelector('.node-time');
+                    const resourcesDiv = nodeElement.querySelector('.node-resources');
+                    const imagesContainer = nodeElement.querySelector('.node-images');
+
+                    // Update state class
+                    nodeElement.className = `node-item ${node.state}`;
+                    
+                    // Update text content only if changed
+                    if (nameSpan && nameSpan.textContent !== `${node.node_name} (${node.node_id})`) {
+                        nameSpan.textContent = `${node.node_name} (${node.node_id})`;
+                    }
+                    if (timeSpan && timeSpan.textContent !== time) {
+                        timeSpan.textContent = time;
+                    }
+                    
+                    // Update resources only if content actually changed (avoid flicker from empty state)
+                    if (resourcesDiv) {
+                        const cachedResources = nodeResourcesCache[nodeId] || '';
+                        const newResourcesHtml = resourcesHtml || '<em>無資源</em>';
+                        
+                        // Only update if resources actually changed from last known state
+                        // This prevents flicker when resources temporarily appear empty during updates
+                        if (cachedResources !== resourcesHtml) {
+                            // Only update if we have resources, or if we previously had no resources
+                            // This avoids showing "無資源" when resources are temporarily missing during update
+                            if (resourcesHtml || cachedResources === '') {
+                                resourcesDiv.innerHTML = newResourcesHtml;
+                                nodeResourcesCache[nodeId] = resourcesHtml;
+                            }
+                            // If cached had resources but new is empty, keep current display (likely transient)
+                        }
+                    }
+
+                    // Update images (only update src for existing images, add new ones if needed)
+                    // Track image keys for comparison
+                    const imageKeys = images.map(img => streamKey(node.node_id, img.name)).sort().join(',');
+                    const cachedImageKeys = nodeImagesCache[nodeId] || '';
+                    
+                    if (images.length > 0) {
+                        // Only update if image list actually changed
+                        if (imageKeys !== cachedImageKeys) {
+                            if (!imagesContainer) {
+                                // Create new images container
+                                const newImagesDiv = document.createElement('div');
+                                newImagesDiv.className = 'node-images';
+                                newImagesDiv.innerHTML = imageHtml;
+                                nodeElement.appendChild(newImagesDiv);
+                                nodeImagesCache[nodeId] = imageKeys;
+                            } else {
+                                // Update existing container - only update what changed
+                                images.forEach(img => {
+                                    const streamId = `stream_${toDomId(streamKey(node.node_id, img.name))}`;
+                                    const imgEl = document.getElementById(streamId);
+                                    if (imgEl) {
+                                        // Image element exists, just update src and FPS
+                                        const newUrl = streamUrlByKey[streamKey(node.node_id, img.name)] || img.url;
+                                        if (imgEl.src !== newUrl) {
+                                            imgEl.src = newUrl;
+                                        }
+                                        const fpsBadge = imgEl.parentElement?.querySelector('.node-video-fps-badge');
+                                        if (fpsBadge) {
+                                            const newFps = getFpsText(node.node_id, img.name);
+                                            if (fpsBadge.textContent !== newFps) {
+                                                fpsBadge.textContent = newFps;
+                                            }
+                                        }
+                                    } else {
+                                        // Image element doesn't exist, need to add it
+                                        // This shouldn't happen often, but handle it gracefully
+                                        const videoDiv = document.createElement('div');
+                                        videoDiv.className = 'node-video';
+                                        videoDiv.onclick = () => showImageModal(img.url, img.name);
+                                        videoDiv.innerHTML = `
+                                            <div class="node-video-badge"><span class="node-video-badge-dot"></span>LIVE</div>
+                                            <div class="node-video-fps-badge">${getFpsText(node.node_id, img.name)}</div>
+                                            <img
+                                                id="${streamId}"
+                                                src="${streamUrlByKey[streamKey(node.node_id, img.name)] || img.url}"
+                                                alt="${img.name}"
+                                                loading="eager"
+                                            >
+                                            <div class="node-video-label">
+                                                <span>${img.name}</span>
+                                                <span style="opacity: 0.85;">${node.node_id}.${img.name}</span>
+                                            </div>
+                                        `;
+                                        imagesContainer.appendChild(videoDiv);
+                                    }
+                                });
+                                nodeImagesCache[nodeId] = imageKeys;
+                            }
+                        } else {
+                            // Image list unchanged, just update existing image sources and FPS
+                            images.forEach(img => {
+                                const streamId = `stream_${toDomId(streamKey(node.node_id, img.name))}`;
+                                const imgEl = document.getElementById(streamId);
+                                if (imgEl) {
+                                    const newUrl = streamUrlByKey[streamKey(node.node_id, img.name)] || img.url;
+                                    if (imgEl.src !== newUrl) {
+                                        imgEl.src = newUrl;
+                                    }
+                                    const fpsBadge = imgEl.parentElement?.querySelector('.node-video-fps-badge');
+                                    if (fpsBadge) {
+                                        const newFps = getFpsText(node.node_id, img.name);
+                                        if (fpsBadge.textContent !== newFps) {
+                                            fpsBadge.textContent = newFps;
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                    } else if (imagesContainer) {
+                        // Images are now empty
+                        // Only remove container if we previously had no images (to avoid flicker from transient empty state)
+                        // If we had images before and now empty, keep the container to avoid flicker
+                        if (cachedImageKeys === '') {
+                            // Previously had no images, safe to remove
+                            imagesContainer.remove();
+                            nodeImagesCache[nodeId] = '';
+                        }
+                        // Otherwise keep the container (had images before, likely transient empty state)
+                    } else if (cachedImageKeys !== '') {
+                        // Had images cached but no container - this shouldn't happen, but update cache
+                        nodeImagesCache[nodeId] = '';
+                    }
+                } else {
+                    // Create new element
+                    nodeElement = document.createElement('div');
+                    nodeElement.className = `node-item ${node.state}`;
+                    nodeElement.id = nodeId;
+                    nodeElement.innerHTML = `
+                        <div class="node-header">
+                            <span class="node-name">${node.node_name} (${node.node_id})</span>
+                            <span class="node-time">${time}</span>
+                        </div>
+                        <div class="node-resources">
+                            ${resourcesHtml || '<em>無資源</em>'}
+                        </div>
+                        ${imageHtml}
+                    `;
+                    nodeElementsById[nodeId] = nodeElement;
+                    // Cache initial resources and images state
+                    nodeResourcesCache[nodeId] = resourcesHtml;
+                    const imageKeys = images.map(img => streamKey(node.node_id, img.name)).sort().join(',');
+                    nodeImagesCache[nodeId] = imageKeys;
+                    needsReorder = true;
+                }
+            });
+
+            // Remove nodes that no longer exist
+            Object.keys(nodeElementsById).forEach(id => {
+                if (!existingIds.has(id)) {
+                    const element = nodeElementsById[id];
+                    if (element && element.parentNode) {
+                        element.parentNode.removeChild(element);
+                    }
+                    delete nodeElementsById[id];
+                    delete nodeResourcesCache[id];
+                    delete nodeImagesCache[id];
+                    needsReorder = true;
+                }
+            });
+
+            // Only reorder if necessary (new nodes added or order changed)
+            if (needsReorder) {
+                nodes.forEach((nodeIndex, idx) => {
+                    const nodeId = `node_${nodeIndex}`;
+                    const element = nodeElementsById[nodeId];
+                    if (element) {
+                        const currentIndex = Array.from(nodeList.children).indexOf(element);
+                        // Only move if element exists and is not in correct position
+                        if (currentIndex === -1) {
+                            // New element, append to end
+                            nodeList.appendChild(element);
+                        } else if (currentIndex !== idx) {
+                            // Element exists but in wrong position, move to correct position
+                            const referenceNode = nodeList.children[idx] || null;
+                            nodeList.insertBefore(element, referenceNode);
+                        }
+                    }
+                });
+            }
+        }
+
+        function addLog(source, message, type, timestamp) {
+            const logContainer = document.getElementById('logContainer');
+            const time = timestamp || new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.innerHTML = `<span class="log-time">[${time}]</span><strong>${source}:</strong> ${message}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        async function startPipeline() {
+            try {
+                const response = await fetch('/start', { method: 'POST' });
+                const data = await response.json();
+                addLog('控制', data.message || 'Pipeline 啟動請求已發送', 'pipeline_start');
+            } catch (error) {
+                addLog('錯誤', `無法啟動 Pipeline: ${error.message}`, 'pipeline_error');
+            }
+        }
+
+        async function stopPipeline() {
+            try {
+                const response = await fetch('/stop', { method: 'POST' });
+                const data = await response.json();
+                addLog('控制', data.message || 'Pipeline 停止請求已發送', 'pipeline_stop');
+            } catch (error) {
+                addLog('錯誤', `無法停止 Pipeline: ${error.message}`, 'pipeline_error');
+            }
+        }
+
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '';
+            addLog('系統', '日誌已清除', 'log');
+        }
+
+
+        function showImageModal(imageUrl, imageTitle) {
+            const modal = document.getElementById('imageModal');
+            const modalImage = document.getElementById('modalImage');
+            modalImage.src = imageUrl;
+            modalImage.alt = imageTitle;
+            modal.classList.add('active');
+        }
+
+        function closeImageModal() {
+            const modal = document.getElementById('imageModal');
+            modal.classList.remove('active');
+        }
+
+        // ESC 鍵關閉模態框
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeImageModal();
+            }
+        });
+
+        // 初始化
+        connectWebSocket();
+    </script>
+</body>
+</html>

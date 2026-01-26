@@ -1,7 +1,9 @@
 import argparse
+import asyncio
 import importlib
 import json
 import os
+import time
 from enum import Enum
 from threading import Event, Thread
 from typing import Any, Dict, List, Optional
@@ -10,6 +12,8 @@ import traceback
 import uvicorn
 from fastapi import (FastAPI, File, Form, HTTPException, UploadFile, WebSocket,
                      WebSocketDisconnect)
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import FileResponse
 
 from aiwin_resource.creator import ResourceCreator
@@ -26,7 +30,23 @@ from node.base import BaseNode, BaseNodeContext
 from node.manager import NodeManager
 from store.file import FileStore
 
+origins = [
+    "http://localhost:5173",
+]
+
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+# 掛載 React app 的 dist 目錄（用於提供 UI 頁面）
+# 優先使用 React app，如果不存在則回退到 static
+ui_dist_path = "ui/dist"
+static_path = "static"
 
 
 class PipelineStatus(str, Enum):
@@ -36,7 +56,7 @@ class PipelineStatus(str, Enum):
 
 
 class PipelineManager:
-    def __init__(self):
+    def __init__(self, connection_manager: Optional['ConnectionManager'] = None):
         self.pipeline_config: Optional[List[Dict[str, Any]]] = None
         self.status: PipelineStatus = PipelineStatus.IDLE
         self._stop_event = Event()
@@ -48,6 +68,8 @@ class PipelineManager:
         self._event_emitter: Optional[EventEmitter] = None
         self._node_context: Optional[BaseNodeContext] = None
         self._node_instances: List[BaseNode] = []
+        self._connection_manager: Optional['ConnectionManager'] = connection_manager
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     def _initialize_components(self):
         """初始化所有必要的組件"""
@@ -125,6 +147,14 @@ class PipelineManager:
         self._stop_event.clear()
         self.status = PipelineStatus.RUNNING
 
+        # 獲取當前事件循環（用於 WebSocket 消息發送）
+        try:
+            self._loop = asyncio.get_event_loop()
+        except RuntimeError:
+            # 如果沒有事件循環，創建一個新的
+            self._loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self._loop)
+
         # 每次啟動時重新初始化組件，確保狀態乾淨
         self._initialize_components()
 
@@ -162,6 +192,24 @@ class PipelineManager:
                 print(f"Error disposing node: {e}")
         self._node_instances.clear()
 
+    def _send_websocket_message(self, message: Dict[str, Any]):
+        """通過 WebSocket 發送消息（從後台線程調用）"""
+        if self._connection_manager is None or self._loop is None:
+            return
+
+        message_str = json.dumps(message, ensure_ascii=False)
+
+        # 在事件循環中執行異步操作
+        if self._loop.is_running():
+            asyncio.run_coroutine_threadsafe(
+                self._connection_manager.broadcast(message_str),
+                self._loop
+            )
+        else:
+            self._loop.run_until_complete(
+                self._connection_manager.broadcast(message_str)
+            )
+
     def _run_pipeline_thread(self):
         """在背景線程中執行 pipeline"""
         try:
@@ -197,10 +245,11 @@ class PipelineManager:
 
             # 保存 prepare 後的資源快照
 
-            json.dump(
-                self._resource_manager.serialize(),
-                open("resource_after_prepare.json", "w"), indent=4
-            )
+            if os.getenv("PIPELINE_DEBUG_SNAPSHOTS", "0") == "1":
+                json.dump(
+                    self._resource_manager.serialize(),
+                    open("resource_after_prepare.json", "w"), indent=4
+                )
 
             # 為每個 node 註冊事件監聽器
             def create_node_executor(node_index: int):
@@ -212,22 +261,88 @@ class PipelineManager:
                         return
 
                     node_instance = self._node_instances[node_index]
-                    node_instance.execute()
+                    node_config = getattr(
+                        node_instance, 'cfg', {})  # type: ignore
+                    node_id = node_config.get('id', f'node_{node_index}')
+                    node_name = node_config.get('name', 'unknown')
+
+                    # 發送節點開始執行消息
+                    self._send_websocket_message({
+                        "type": "node_start",
+                        "node_index": node_index,
+                        "node_id": node_id,
+                        "node_name": node_name,
+                        "timestamp": time.time()
+                    })
+
+                    try:
+                        node_instance.execute()
+                    except Exception as e:
+                        # 發送錯誤消息
+                        self._send_websocket_message({
+                            "type": "node_error",
+                            "node_index": node_index,
+                            "node_id": node_id,
+                            "node_name": node_name,
+                            "error": str(e),
+                            "timestamp": time.time()
+                        })
+                        raise
 
                     if self._stop_event.is_set():
                         return
 
+                    # 獲取執行後的資源狀態
+                    resource_snapshot = None
+                    image_urls: List[Dict[str, str]] = []
                     if self._resource_manager is not None:
+                        resource_snapshot = self._resource_manager.serialize()
+                        if os.getenv("PIPELINE_DEBUG_SNAPSHOTS", "0") == "1":
+                            json.dump(
+                                resource_snapshot,
+                                open(
+                                    f"resource_after_execute_node_{node_index}.json", "w"),
+                                indent=4
+                            )
 
-                        json.dump(
-                            self._resource_manager.serialize(),
-                            open(
-                                f"resource_after_execute_node_{node_index}.json", "w"),
-                            indent=4
-                        )
+                        # 提取圖像資源的 URL
+                        if resource_snapshot:
+                            for resource in resource_snapshot:
+                                if resource.get('schema') == 'image.v1' and resource.get('data'):
+                                    image_url = resource.get('data')
+                                    if isinstance(image_url, str) and image_url.startswith('http'):
+                                        image_urls.append({
+                                            'key': resource.get('key', ''),
+                                            'name': resource.get('name', ''),
+                                            'url': image_url
+                                        })
+
+                    # 發送節點執行完成消息
+                    self._send_websocket_message({
+                        "type": "node_complete",
+                        "node_index": node_index,
+                        "node_id": node_id,
+                        "node_name": node_name,
+                        "resources": resource_snapshot,
+                        "image_urls": image_urls,
+                        "timestamp": time.time()
+                    })
 
                     if not self._stop_event.is_set():
                         node_instance.next()
+                        # 如果是最後一個節點且沒有被停止，循環回到第一個節點
+                        # 檢查是否為最後一個節點（_next_node_index 為 None）
+                        next_node_index = node_config.get(
+                            '_next_node_index')  # type: ignore
+                        if next_node_index is None and not self._stop_event.is_set():
+                            # 最後一個節點執行完畢，循環回到第一個節點
+                            self._send_websocket_message({
+                                "type": "cycle_complete",
+                                "message": "Pipeline cycle completed, restarting from first node",
+                                "timestamp": time.time()
+                            })
+                            if self._event_emitter is not None:
+                                self._event_emitter.emit("node_start_0")
 
                 return execute_node
 
@@ -236,6 +351,14 @@ class PipelineManager:
                 self._event_emitter.on(
                     f"node_start_{i}", create_node_executor(i))
 
+            # 發送 pipeline 開始消息
+            self._send_websocket_message({
+                "type": "pipeline_start",
+                "message": "Pipeline execution started",
+                "node_count": len(self._node_instances),
+                "timestamp": time.time()
+            })
+
             # 發送第一個 node 的開始信號
             if not self._stop_event.is_set():
                 self._event_emitter.emit("node_start_0")
@@ -243,11 +366,21 @@ class PipelineManager:
         except Exception as e:
             traceback.print_exc()
             print(f"Error in pipeline execution: {e}")
+            self._send_websocket_message({
+                "type": "pipeline_error",
+                "error": str(e),
+                "timestamp": time.time()
+            })
             self.status = PipelineStatus.STOPPED
         finally:
-            # 如果沒有被手動停止，執行完成後設置為 IDLE
-            if not self._stop_event.is_set():
-                self.status = PipelineStatus.IDLE
+            # 只有在被手動停止時才設置為 STOPPED，否則保持 RUNNING 狀態以支持循環執行
+            if self._stop_event.is_set():
+                self._send_websocket_message({
+                    "type": "pipeline_stop",
+                    "message": "Pipeline stopped by user",
+                    "timestamp": time.time()
+                })
+                self.status = PipelineStatus.STOPPED
 
     def get_status(self):
         """獲取 pipeline 狀態"""
@@ -258,8 +391,8 @@ class PipelineManager:
         }
 
 
-# 全局 pipeline 管理器
-pipeline_manager = PipelineManager()
+# 全局 pipeline 管理器（稍後會設置 connection_manager）
+pipeline_manager: Optional[PipelineManager] = None
 
 
 class ConnectionManager:
@@ -282,6 +415,9 @@ class ConnectionManager:
 
 
 manager = ConnectionManager()
+
+# 初始化 pipeline_manager 並設置 connection_manager
+pipeline_manager = PipelineManager(connection_manager=manager)
 
 
 rm = ResourceInstanceManager()
@@ -306,7 +442,14 @@ async def test():
 
 @app.get("/")
 def root():
-    return {"message": "Hello from orchestrator!"}
+    # Serve React app index.html if available, otherwise fallback to static
+    static_index = os.path.join("static", "index.html")
+
+    if os.path.exists(static_index):
+        return FileResponse(static_index)
+    else:
+        raise HTTPException(
+            status_code=404, detail="UI not found.")
 
 
 @app.post("/file")
@@ -362,6 +505,9 @@ async def set_pipeline_config(pipeline: List[Dict[str, Any]]):
     接收 pipeline 配置（list of nodes），保存配置以供後續啟動使用。
     如果 pipeline 正在運行，需要先調用 /stop 停止。
     """
+    if pipeline_manager is None:
+        raise HTTPException(
+            status_code=500, detail="Pipeline manager not initialized")
     return pipeline_manager.set_config(pipeline)
 
 
@@ -374,6 +520,9 @@ async def start_pipeline():
     pipeline 會在背景線程中執行，可以多次調用 /start 來重複執行。
     如果 pipeline 已在運行，會返回錯誤。
     """
+    if pipeline_manager is None:
+        raise HTTPException(
+            status_code=500, detail="Pipeline manager not initialized")
     return pipeline_manager.start()
 
 
@@ -385,7 +534,16 @@ async def stop_pipeline():
     停止當前正在執行的 pipeline。
     如果 pipeline 未在運行，會返回當前狀態。
     """
-    return pipeline_manager.stop()
+    if pipeline_manager is None:
+        raise HTTPException(
+            status_code=500, detail="Pipeline manager not initialized")
+    # NOTE:
+    # `PipelineManager.stop()` will join threads and dispose resources.
+    # Some resources (e.g. ImageResource via FileStore) perform synchronous HTTP
+    # requests to this same server (localhost:8000). Running that inside the
+    # FastAPI event loop can deadlock and make the whole server appear frozen.
+    # Offload the stop+cleanup to a worker thread to keep the event loop free.
+    return await asyncio.to_thread(pipeline_manager.stop)
 
 
 @app.get("/status")
@@ -398,6 +556,10 @@ async def get_pipeline_status():
     - has_config: 是否已設置配置
     - config_length: 配置中的 node 數量
     """
+    if pipeline_manager is None:
+        raise HTTPException(
+            status_code=500, detail="Pipeline manager not initialized")
+    assert pipeline_manager is not None  # Type guard
     return pipeline_manager.get_status()
 
 

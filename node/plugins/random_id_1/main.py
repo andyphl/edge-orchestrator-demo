@@ -9,6 +9,8 @@ from node.base import BaseNode, BaseNodeContext
 
 class WebcamNode(BaseNode):
     _image_resource: Resource[MatLike] | None = None
+    _cap: cv2.VideoCapture | None = None
+    _is_valid_device: bool = False
 
     def __init__(self, ctx: BaseNodeContext, config: Dict[str, Any]):
         self.ctx = ctx
@@ -53,26 +55,29 @@ class WebcamNode(BaseNode):
             raise ValueError("device_id is required")
 
         # Check if device is available before attempting to open
-        available_devices = self._list_devices()
-        if device_id not in available_devices:
-            raise ValueError(
-                f"Device {device_id} is not available. "
-                f"Available devices: {available_devices if available_devices else 'none'}. "
-                f"Make sure the camera is connected and not in use by another application.")
-
-        cap = cv2.VideoCapture(device_id)
-        if not cap.isOpened():
+        if not self._is_valid_device:
             available_devices = self._list_devices()
-            raise ValueError(
-                f"Failed to open video capture for device {device_id}. "
-                f"Available devices: {available_devices if available_devices else 'none'}. "
-                f"The device may be in use by another application or may require permissions.")
+            if device_id not in available_devices:
+                raise ValueError(
+                    f"Device {device_id} is not available. "
+                    f"Available devices: {available_devices if available_devices else 'none'}. "
+                    f"Make sure the camera is connected and not in use by another application.")
+            self._is_valid_device = True
+
+        # Reuse VideoCapture across executions (opening the camera per-frame is expensive
+        # and can leak handles if not released).
+        if self._cap is None or not self._cap.isOpened():
+            self._cap = cv2.VideoCapture(device_id)
+            if not self._cap.isOpened():
+                raise ValueError(
+                    f"Failed to open video capture for device {device_id}. "
+                    f"The device may be in use by another application or may require permissions.")
 
         try:
-            # Set some properties to help with initialization
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            # Keep buffer small to reduce latency
+            self._cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
-            ret, frame = cap.read()
+            ret, frame = self._cap.read()
             if not ret:
                 raise ValueError(
                     f"Failed to read frame from device {device_id}. "
@@ -100,8 +105,15 @@ class WebcamNode(BaseNode):
 
             # 执行完成后，通知下一个 node
 
-        finally:
-            cap.release()
+        except Exception as e:
+            # If capture breaks, release so next execute can reopen cleanly.
+            try:
+                # At this point `_cap` is expected to be initialized.
+                self._cap.release()
+            finally:
+                self._cap = None
+                self._is_valid_device = False
+            raise e
 
     def next(self) -> None:
         next_node_index = self.cfg.get('_next_node_index')
@@ -109,5 +121,7 @@ class WebcamNode(BaseNode):
             self.ctx['event'].emit(f"node_start_{next_node_index}")
 
     def dispose(self) -> None:
+        if self._cap is not None:
+            self._cap.release()
         if (self._image_resource is not None):
             self._image_resource.dispose()

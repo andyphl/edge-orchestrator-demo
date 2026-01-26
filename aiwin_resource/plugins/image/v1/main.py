@@ -6,12 +6,15 @@ from cv2.typing import MatLike
 
 from aiwin_resource.base import DataItem, Resource, ResourceConfig, ResourceContext
 from store.file import FileStore
+from datetime import datetime
 
 
 class ImageResource(Resource[MatLike]):
     """Image resource implementation."""
     schema: str = "image.v1"
-    _file_store = FileStore(cfg={"url": "http://localhost:8000"})
+    # Use local file store to avoid per-frame HTTP roundtrip to this same server.
+    _file_store = FileStore(
+        cfg={"url": "http://localhost:8000", "local_dir": "files"})
 
     def __init__(self, ctx: ResourceContext, config: Union[ResourceConfig, Dict[str, Any]]):
         super().__init__(ctx, config)
@@ -28,15 +31,17 @@ class ImageResource(Resource[MatLike]):
 
         data = item.get('data')
 
-        versioned_filename = f"{self._version}_{self._filename}"
+        # Overwrite a stable filename for "video-like" updates.
+        # Add cache-bust query (?v=) so browsers re-fetch the latest frame.
+        filename = self._filename
         if data is not None:
-            success, encoded_image = cv2.imencode(
-                '.jpg', data)
+            success, encoded_image = cv2.imencode('.jpg', data, [
+                int(cv2.IMWRITE_JPEG_QUALITY), 80
+            ])
             if not success:
                 raise ValueError("Failed to encode image to JPEG")
             image_data = encoded_image.tobytes()
-            self._file_store.upload(
-                versioned_filename, image_data)
+            self._file_store.upload(filename, image_data)
 
         return [{
             'key': self._key,
@@ -45,7 +50,7 @@ class ImageResource(Resource[MatLike]):
             'version': item.get('version'),
             'name': self._name,
             'scopes': self._scopes,
-            'data': f"http://localhost:8000/file/{versioned_filename}" if data is not None else None
+            'data': f"http://localhost:8000/file/{filename}?v={item.get('version')}" if data is not None else None
         }]
 
     def from_serialized(self, serialized: Dict[str, Any]) -> 'ImageResource':
@@ -57,9 +62,21 @@ class ImageResource(Resource[MatLike]):
         })
 
     def dispose(self) -> None:
-
         self._file_store.delete(self._filename)
 
     def set_data(self, data: MatLike | None) -> DataItem:
-        item = super().set_data(data)
+        """Override set_data to upload image to file store."""
+        self._version += 1
+        if self._pool_size is not None and len(self._pool) >= self._pool_size:
+            self._pool.pop(0)
+            # self._file_store.delete(
+            #     f"{popped_item['version']}_{self._filename}")
+        item = DataItem(
+            data=data,
+            version=self._version,
+            timestamp=datetime.now(),
+        )
+        self._pool.append(item)
+        self._ctx['event_emitter'].emit(
+            "resource_updated", self.create_token())
         return item
