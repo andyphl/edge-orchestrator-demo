@@ -12,7 +12,6 @@ import traceback
 import uvicorn
 from fastapi import (FastAPI, File, Form, HTTPException, UploadFile, WebSocket,
                      WebSocketDisconnect)
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import FileResponse
 
@@ -26,7 +25,8 @@ from aiwin_resource.plugins.unknown.v1.main import UnknownResource
 from aiwin_resource.plugins.vision.input.usb_device.v1.main import UsbDeviceResource
 from aiwin_resource.plugins.vision.input.usb_devices.v1.main import UsbDevicesResource
 from event_emitter import EventEmitter
-from node.base import BaseNode, BaseNodeContext
+from event_queue.base import EventQueue, EventQueueConfig
+from node.base import BaseNode, BaseNodeContext, NodeToken
 from node.manager import NodeManager
 from store.file import FileStore
 
@@ -69,6 +69,8 @@ class PipelineManager:
         self._node_context: Optional[BaseNodeContext] = None
         self._node_instances: List[BaseNode] = []
         self._connection_manager: Optional['ConnectionManager'] = connection_manager
+        self._event_queue: EventQueue = EventQueue(
+            cfg=EventQueueConfig(max_size=100))
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     def _initialize_components(self):
@@ -115,7 +117,8 @@ class PipelineManager:
             resource_manager=self._resource_manager,
             resource_creator=self._resource_creator,
             file_store=self._file_store,
-            event=self._event_emitter
+            event=self._event_emitter,
+            event_queue=self._event_queue
         )
 
     def set_config(self, pipeline: List[Dict[str, Any]]):
@@ -251,7 +254,7 @@ class PipelineManager:
                     open("resource_after_prepare.json", "w"), indent=4
                 )
 
-            # 為每個 node 註冊事件監聽器
+            # 定義節點執行器，供 token 迴圈取得 token 後呼叫
             def create_node_executor(node_index: int):
                 def execute_node(data: Any = None):
                     if self._stop_event.is_set():
@@ -330,26 +333,17 @@ class PipelineManager:
 
                     if not self._stop_event.is_set():
                         node_instance.next()
-                        # 如果是最後一個節點且沒有被停止，循環回到第一個節點
-                        # 檢查是否為最後一個節點（_next_node_index 為 None）
+                        # 若為最後一個節點，發送 cycle_complete；下一節點由節點的 next() 經 put_token 排入
                         next_node_index = node_config.get(
                             '_next_node_index')  # type: ignore
                         if next_node_index is None and not self._stop_event.is_set():
-                            # 最後一個節點執行完畢，循環回到第一個節點
                             self._send_websocket_message({
                                 "type": "cycle_complete",
                                 "message": "Pipeline cycle completed, restarting from first node",
                                 "timestamp": time.time()
                             })
-                            if self._event_emitter is not None:
-                                self._event_emitter.emit("node_start_0")
 
                 return execute_node
-
-            # 註冊事件監聽器
-            for i in range(len(self._node_instances)):
-                self._event_emitter.on(
-                    f"node_start_{i}", create_node_executor(i))
 
             # 發送 pipeline 開始消息
             self._send_websocket_message({
@@ -359,9 +353,18 @@ class PipelineManager:
                 "timestamp": time.time()
             })
 
-            # 發送第一個 node 的開始信號
+            # 以 token 驅動：投入第一個節點的 token，然後由佇列消費執行對應節點
             if not self._stop_event.is_set():
-                self._event_emitter.emit("node_start_0")
+                self._event_queue.put({"next_node_index": 0})
+
+            while not self._stop_event.is_set():
+                token = self._event_queue.get()
+                if token is None:
+                    continue
+                next_index = token.get("next_node_index")
+                if next_index is None or next_index < 0 or next_index >= len(self._node_instances):
+                    break
+                create_node_executor(next_index)()
 
         except Exception as e:
             traceback.print_exc()

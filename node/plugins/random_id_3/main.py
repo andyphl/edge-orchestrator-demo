@@ -45,8 +45,8 @@ class RandomConditionNode(BaseNode):
 
     def next(self) -> None:
         next_node_index = self.cfg.get('_next_node_index')
-        if next_node_index is not None:
-            self.ctx['event'].emit(f"node_start_{next_node_index}")
+        next_index = next_node_index if next_node_index is not None else 0  # 最後一節點循環回 0
+        self.ctx['event_queue'].put({"next_node_index": next_index})
 
     def dispose(self) -> None:
         """清理資源"""
